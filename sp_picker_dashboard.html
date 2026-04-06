@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>巴巴塔选品看板</title>
+<title>巴巴塔AdSpy自动化选品工具</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -168,7 +168,7 @@
   <div class="header-inner">
     <div class="header-top">
       <div>
-        <h1><span class="logo">🎯</span> 巴巴塔选品看板</h1>
+        <h1><span class="logo">🎯</span> 巴巴塔AdSpy自动化选品工具</h1>
         <div class="header-meta" id="header-meta">数据来源：热榜 · 最近 3 天汇总</div>
       </div>
       <div style="font-size:0.8rem;opacity:.7;">v2.0 · <span id="updated-time"></span></div>
@@ -181,18 +181,6 @@
 
 <div class="controls">
   <div class="controls-inner">
-    <div class="search-wrap">
-      <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/></svg>
-      <input class="search-input" id="search" type="text" placeholder="搜索商品标题 / 关键词..." oninput="render()">
-    </div>
-    <select class="sort-select" id="sort" onchange="render()">
-      <option value="score">按评分降序</option>
-      <option value="sites">按铺货数降序</option>
-      <option value="flagship">按旗舰命中降序</option>
-      <option value="price_asc">按价格升序</option>
-      <option value="price_desc">按价格降序</option>
-      <option value="new">新品优先</option>
-    </select>
     <div class="cat-tabs" id="cat-tabs"></div>
   </div>
 </div>
@@ -2700,8 +2688,8 @@ let activecat = 'all';
 let currentModal = null;
 
 function filtered() {
-  const q = document.getElementById('search').value.toLowerCase().trim();
-  const sort = document.getElementById('sort').value;
+  const q = '';
+  const sort = 'score';
   let data = RAW_DATA.map((p,i)=>({...p,_idx:i,_cat:getCategory(p.title)}));
 
   if (activecat !== 'all') {
