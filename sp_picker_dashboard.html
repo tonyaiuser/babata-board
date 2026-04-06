@@ -1,0 +1,2833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>巴巴塔选品看板</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --text: #111827;
+    --text2: #6b7280;
+    --text3: #9ca3af;
+    --accent: #6366f1;
+    --accent-light: #eef2ff;
+    --green: #10b981;
+    --green-light: #ecfdf5;
+    --amber: #f59e0b;
+    --amber-light: #fffbeb;
+    --red: #ef4444;
+    --red-light: #fef2f2;
+    --blue: #3b82f6;
+    --blue-light: #eff6ff;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    --shadow-hover: 0 8px 25px rgba(0,0,0,.12);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%); color: white; padding: 20px 24px 24px; }
+  .header-inner { max-width: 1280px; margin: 0 auto; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .header h1 span.logo { font-size: 1.6rem; }
+  .header-meta { font-size: 0.8rem; opacity: .7; margin-top: 4px; }
+  .stats-row { display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
+  .stat-pill { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: 6px 14px; font-size: 0.82rem; display: flex; align-items: center; gap: 6px; }
+  .stat-pill strong { font-weight: 700; }
+
+  /* Controls */
+  .controls { background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .controls-inner { max-width: 1280px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .search-wrap { flex: 1; min-width: 180px; position: relative; }
+  .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); }
+  .search-input { width: 100%; padding: 8px 12px 8px 34px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; outline: none; transition: border .15s; background: var(--bg); }
+  .search-input:focus { border-color: var(--accent); background: white; }
+  .sort-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; outline: none; cursor: pointer; background: var(--bg); color: var(--text); }
+  .cat-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+  .cat-tab { padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; background: var(--bg); color: var(--text2); transition: all .15s; }
+  .cat-tab:hover { border-color: var(--accent); color: var(--accent); }
+  .cat-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* Main */
+  .main { max-width: 1280px; margin: 0 auto; padding: 24px; }
+  .section-title { font-size: 1rem; font-weight: 600; color: var(--text2); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-title span.count { background: var(--accent-light); color: var(--accent); padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+
+  /* Grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+  /* Card */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: box-shadow .2s, transform .2s; box-shadow: var(--shadow); cursor: default; }
+  .card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+  .card-img { width: 100%; height: 180px; object-fit: cover; display: block; background: linear-gradient(135deg, #e0e7ff, #f0f4ff); }
+  .card-img-placeholder { width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; font-size: 3rem; background: linear-gradient(135deg, #e0e7ff 0%, #fce7f3 100%); }
+  .card-img.loaded { background: #f8f8f8; }
+  .card-body { padding: 14px; }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .card-title { font-size: 0.875rem; font-weight: 600; line-height: 1.4; color: var(--text); flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .score-badge { flex-shrink: 0; font-size: 0.8rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .score-high { background: var(--green-light); color: var(--green); }
+  .score-mid { background: var(--amber-light); color: var(--amber); }
+  .score-low { background: var(--blue-light); color: var(--blue); }
+  .card-cn { font-size: 0.78rem; color: var(--text2); margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .meta-chip { display: flex; align-items: center; gap: 4px; font-size: 0.76rem; padding: 3px 8px; border-radius: 6px; font-weight: 500; }
+  .chip-sites { background: #f1f5f9; color: #475569; }
+  .chip-flagship { background: #fef3c7; color: #b45309; }
+  .chip-price { background: #f0fdf4; color: #15803d; }
+  .chip-date { background: #faf5ff; color: #7c3aed; }
+  .flagship-list { font-size: 0.72rem; color: var(--text3); margin-bottom: 10px; }
+  .flagship-list strong { color: var(--amber); }
+  .card-actions { display: flex; gap: 8px; }
+  .btn-sample { flex: 1; text-align: center; padding: 7px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-decoration: none; background: var(--accent); color: white; transition: background .15s; border: none; cursor: pointer; }
+  .btn-sample:hover { background: #4f46e5; }
+  .btn-sites { padding: 7px 10px; border-radius: 8px; font-size: 0.8rem; border: 1px solid var(--border); background: var(--bg); color: var(--text2); cursor: pointer; transition: background .15s; }
+  .btn-sites:hover { background: var(--card); }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 24px; max-width: 480px; width: 100%; max-height: 80vh; overflow-y: auto; }
+  .modal h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+  .modal-site-list { list-style: none; }
+  .modal-site-list li { padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; }
+  .modal-site-list li:nth-child(odd) { background: var(--bg); }
+  .modal-site-list li a { color: var(--accent); text-decoration: none; font-size: 0.8rem; }
+  .modal-site-list li a:hover { text-decoration: underline; }
+  .flagship-tag { font-size: 0.7rem; padding: 2px 6px; background: #fef3c7; color: #b45309; border-radius: 4px; font-weight: 600; }
+  .modal-close { margin-top: 16px; width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 0.875rem; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+
+  /* Rank badge */
+  .rank { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.6); color: white; font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; z-index: 2; }
+  .card-img-wrap { position: relative; }
+  .rank-1 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .rank-2 { background: linear-gradient(135deg, #9ca3af, #6b7280); }
+  .rank-3 { background: linear-gradient(135deg, #b45309, #92400e); }
+
+  /* NEW badge */
+  .badge-new { position: absolute; top: 10px; right: 10px; background: linear-gradient(135deg, #ef4444, #f97316); color: white; font-size: 0.68rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; z-index: 2; letter-spacing: 0.5px; animation: pulse-new 2s infinite; }
+  @keyframes pulse-new { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.08); } }
+
+  /* Trend sparkline */
+  .trend-wrap { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; color: var(--text3); }
+  .trend-label { font-weight: 500; }
+
+  @media (max-width: 640px) {
+    .header { padding: 12px 14px 14px; }
+    .header h1 { font-size: 1.15rem; }
+    .header h1 span.logo { font-size: 1.2rem; }
+    .header-meta { font-size: 0.7rem; }
+    .stats-row { gap: 8px; margin-top: 10px; }
+    .stat-pill { padding: 4px 10px; font-size: 0.72rem; }
+    .controls-inner { padding: 8px 12px; gap: 8px; }
+    .search-input { padding: 6px 10px 6px 30px; font-size: 0.8rem; }
+    .sort-select { padding: 6px 8px; font-size: 0.8rem; }
+    .cat-tabs { gap: 4px; }
+    .cat-tab { padding: 4px 10px; font-size: 0.72rem; }
+    .main { padding: 12px; }
+    .section-title { font-size: 0.88rem; margin-bottom: 10px; }
+    .grid { grid-template-columns: 1fr; gap: 10px; }
+    /* 移动端横排卡片 */
+    .card { display: flex; flex-direction: row; }
+    .card:hover { transform: none; }
+    .card-img-wrap { flex-shrink: 0; width: 110px; }
+    .card-img, .card-img-placeholder { height: 100%; min-height: 130px; border-radius: var(--radius) 0 0 var(--radius); }
+    .card-body { padding: 10px; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
+    .card-top { margin-bottom: 4px; }
+    .card-title { font-size: 0.78rem; -webkit-line-clamp: 2; line-height: 1.3; }
+    .score-badge { font-size: 0.7rem; padding: 2px 6px; }
+    .card-cn { font-size: 0.7rem; margin-bottom: 6px; }
+    .card-meta { gap: 4px; margin-bottom: 6px; }
+    .meta-chip { font-size: 0.68rem; padding: 2px 5px; }
+    .flagship-list { font-size: 0.66rem; margin-bottom: 6px; }
+    .card-actions { gap: 6px; }
+    .btn-sample { padding: 5px; font-size: 0.72rem; }
+    .btn-sites { padding: 5px 8px; font-size: 0.72rem; }
+    .rank { font-size: 0.62rem; padding: 2px 5px; top: 6px; left: 6px; }
+    .badge-new { font-size: 0.58rem; padding: 2px 5px; top: 6px; right: 6px; }
+    .trend-wrap svg { width: 50px; height: 20px; }
+    .trend-wrap { font-size: 0.62rem; }
+    .modal { padding: 16px; border-radius: 12px; }
+    .modal h3 { font-size: 0.9rem; }
+    .modal-site-list li { padding: 6px 8px; font-size: 0.78rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div>
+        <h1><span class="logo">🎯</span> 巴巴塔选品看板</h1>
+        <div class="header-meta" id="header-meta">数据来源：热榜 · 最近 3 天汇总</div>
+      </div>
+      <div style="font-size:0.8rem;opacity:.7;">v2.0 · <span id="updated-time"></span></div>
+    </div>
+    <div class="stats-row" id="stats-row">
+      <div class="stat-pill">⚡ 正在加载...</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="controls-inner">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/></svg>
+      <input class="search-input" id="search" type="text" placeholder="搜索商品标题 / 关键词..." oninput="render()">
+    </div>
+    <select class="sort-select" id="sort" onchange="render()">
+      <option value="score">按评分降序</option>
+      <option value="sites">按铺货数降序</option>
+      <option value="flagship">按旗舰命中降序</option>
+      <option value="price_asc">按价格升序</option>
+      <option value="price_desc">按价格降序</option>
+      <option value="new">新品优先</option>
+    </select>
+    <div class="cat-tabs" id="cat-tabs"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="section-title">
+    Top 产品列表 <span class="count" id="result-count">0</span>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none;">
+    <div class="empty-icon">🔍</div>
+    <div>没有找到匹配的商品</div>
+    <div style="font-size:.8rem;margin-top:6px;color:#9ca3af;">试试其他关键词或清空筛选</div>
+  </div>
+</div>
+
+
+<script>
+const RAW_DATA = [
+  {
+    "handle": "heavy-duty-fence-post-repair-kit",
+    "title": "🔥Hot sale -50% OFF🛠️Heavy-Duty Fence Post Repair Kit | Strong Fix for Broken & Leaning Posts",
+    "price": "21.99",
+    "published_at": "2026-03-30T16:44:55+08:00",
+    "sites_count": 26,
+    "flagship_count": 6,
+    "sample_url": "https://ouisyes.com/products/heavy-duty-fence-post-repair-kit",
+    "score": 58,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://ouisyes.com/cdn/shop/files/spp_shopify20260325233614_06b36977bcf2c8088b867b121ef60b34_271a1bb0-47a3-4cc4-b997-1c09f729938f.png?v=1775029864",
+    "trend": {
+      "2026-03-23": 7,
+      "2026-03-24": 10,
+      "2026-03-25": 14,
+      "2026-03-26": 19,
+      "2026-03-27": 17,
+      "2026-03-28": 8,
+      "2026-03-29": 5,
+      "2026-03-31": 3,
+      "2026-04-01": 26,
+      "2026-04-02": 26,
+      "2026-04-03": 26,
+      "2026-04-04": 26,
+      "2026-04-05": 26,
+      "2026-04-06": 26
+    }
+  },
+  {
+    "handle": "lyl-3",
+    "title": "🌈🔧 8-22mm Universal Wrench Receive a FREE 3-17mm Universal Wrench!🔧",
+    "price": "14.99",
+    "published_at": "2026-03-26",
+    "sites_count": 15,
+    "flagship_count": 4,
+    "sample_url": "https://sempornai.com/products/lyl-3",
+    "score": 39,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://sempornai.com/cdn/shop/files/spp_20250219111830_44e5054312c4ab1d608a285c05911943_dedc556c-132d-4580-8a37-3ce08338a049.jpg?v=1774518997",
+    "trend": {
+      "2026-03-24": 4,
+      "2026-03-25": 11,
+      "2026-03-26": 11,
+      "2026-03-27": 11,
+      "2026-03-28": 6,
+      "2026-03-29": 4,
+      "2026-04-01": 15,
+      "2026-04-02": 15,
+      "2026-04-03": 15,
+      "2026-04-04": 15,
+      "2026-04-05": 15,
+      "2026-04-06": 15
+    }
+  },
+  {
+    "handle": "yarn-love-mug",
+    "title": "🔥LAST DAY SALE 50% OFF!!🏆Flash Sale⚡ 50K+ SOLD! Almost Gone💥Yarn Love Mug, Gift For Crafters And Creative Souls",
+    "price": "11.99",
+    "published_at": "2026-03-30T01:10:07-05:00",
+    "sites_count": 23,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/yarn-love-mug",
+    "score": 39,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260327150607_8bde92694e98cafcef8ae95ba5062e67_28c2a029-5ef1-4cd2-b993-f9d539940974.jpg?v=1774923052",
+    "trend": {
+      "2026-03-29": 3,
+      "2026-03-30": 13,
+      "2026-03-31": 18,
+      "2026-04-01": 22,
+      "2026-04-02": 22,
+      "2026-04-03": 23,
+      "2026-04-04": 23,
+      "2026-04-05": 23,
+      "2026-04-06": 23
+    }
+  },
+  {
+    "handle": "powerful-wheel-cleaning-refurbish-wax",
+    "title": "Leistungsstarkes Felgenreinigungs- und Aufbereitungswachs",
+    "price": "12.99",
+    "published_at": "2026-03-29",
+    "sites_count": 25,
+    "flagship_count": 1,
+    "sample_url": "https://hairstudiov.com/products/powerful-wheel-cleaning-refurbish-wax",
+    "score": 37,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://floweraup.com/cdn/shop/files/spp_shopify20251211103447_a1e889306f98974ecd64eee80943a3b4_4770373e-abf0-49bd-9635-db09eefdf7b7.png?v=1774708237",
+    "trend": {
+      "2026-03-27": 9,
+      "2026-03-28": 12,
+      "2026-03-29": 17,
+      "2026-03-30": 21,
+      "2026-03-31": 10,
+      "2026-04-01": 22,
+      "2026-04-02": 22,
+      "2026-04-03": 22,
+      "2026-04-04": 22,
+      "2026-04-05": 25,
+      "2026-04-06": 25
+    }
+  },
+  {
+    "handle": "14-inch-heavy-duty-canvas-tool-bag",
+    "title": "🔥50 % Rabatt💎Robuste 14-Zoll-Werkzeugtasche aus Canvas | Extra großes Fassungsvermögen ⚙Hergestellt aus hochdichtem Canvas, extrem abrieb- und reißfest ✨",
+    "price": "26.98",
+    "published_at": "2026-03-30T02:16:43+01:00",
+    "sites_count": 20,
+    "flagship_count": 2,
+    "sample_url": "https://hairstudiov.com/products/14-inch-heavy-duty-canvas-tool-bag",
+    "score": 36,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260329235420_ce0060981b31a9cf37fd6b819bac1baf_ac6ed127-fa49-4c38-9e6c-5a71c04f64c8.jpg?v=1774835936",
+    "trend": {
+      "2026-03-30": 8,
+      "2026-03-31": 14,
+      "2026-04-01": 16,
+      "2026-04-02": 17,
+      "2026-04-03": 20,
+      "2026-04-04": 20,
+      "2026-04-05": 20,
+      "2026-04-06": 20
+    }
+  },
+  {
+    "handle": "motorcycle-anti-theft-alarm-disc-lock",
+    "title": "Antivol à disque avec alarme pour moto",
+    "price": "29.99",
+    "published_at": "2026-03-30",
+    "sites_count": 20,
+    "flagship_count": 2,
+    "sample_url": "https://copensunny.com/products/motorcycle-anti-theft-alarm-disc-lock",
+    "score": 36,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260330140734_1b7aae8e8dbed2e44348bdc5fdd4364c_1617f2b9-a6db-4731-a3e8-a084dc94c734.jpg?v=1774850900",
+    "trend": {
+      "2026-03-30": 5,
+      "2026-03-31": 11,
+      "2026-04-01": 15,
+      "2026-04-02": 19,
+      "2026-04-03": 20,
+      "2026-04-04": 20,
+      "2026-04-05": 20,
+      "2026-04-06": 20
+    }
+  },
+  {
+    "handle": "smudge-proof-curling-lengthening-mascara",
+    "title": "🔥💨Smudge-Proof Curling & Lengthening Mascara 🥳Today Only ￡3.99！！",
+    "price": "7.99",
+    "published_at": "2026-03-27",
+    "sites_count": 15,
+    "flagship_count": 3,
+    "sample_url": "https://loungon.com/products/smudge-proof-curling-lengthening-mascara",
+    "score": 35,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260323162221_6e66f5c235cb963ea72658be0c010b94_46be269b-d249-4528-8222-7e775a9ae1e3.jpg?v=1774582609",
+    "trend": {
+      "2026-03-23": 3,
+      "2026-03-24": 8,
+      "2026-03-25": 12,
+      "2026-03-26": 14,
+      "2026-03-27": 8,
+      "2026-03-28": 6,
+      "2026-04-01": 15,
+      "2026-04-02": 15,
+      "2026-04-03": 15,
+      "2026-04-04": 15,
+      "2026-04-05": 15,
+      "2026-04-06": 15
+    }
+  },
+  {
+    "handle": "quick-splice-solderless-wire-terminals",
+    "title": "⚡ 50% OFF TOOL-FREE TERMINALS! ✨ Tool-free installation & secure copper connection for all cable types 🔌",
+    "price": "8.99",
+    "published_at": "2026-03-28",
+    "sites_count": 14,
+    "flagship_count": 3,
+    "sample_url": "https://boniss.com/products/quick-splice-solderless-wire-terminals",
+    "score": 34,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://boniss.com/cdn/shop/files/spp_shopify20260324151332_5eaaedac9dc56adda2a09e4930f7307b_71b40e61-24de-4b07-9b9e-9e8104478824.png?v=1774707841",
+    "trend": {
+      "2026-03-24": 3,
+      "2026-03-25": 7,
+      "2026-03-26": 10,
+      "2026-03-27": 10,
+      "2026-03-28": 7,
+      "2026-03-29": 4,
+      "2026-03-30": 3,
+      "2026-04-01": 14,
+      "2026-04-02": 14,
+      "2026-04-03": 14,
+      "2026-04-04": 14,
+      "2026-04-05": 14,
+      "2026-04-06": 14
+    }
+  },
+  {
+    "handle": "positioning-squares-right-angle-clamps-kit",
+    "title": "90-Degree Positioning Squares Right Angle Clamps Kit",
+    "price": "19.99",
+    "published_at": "2026-03-30",
+    "sites_count": 18,
+    "flagship_count": 2,
+    "sample_url": "https://sempornai.com/products/positioning-squares-right-angle-clamps-kit",
+    "score": 34,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://sempornai.com/cdn/shop/files/spp_shopify20260402164024_50624328f5e210dfcc0c5a014a0dc950_1a980493-1b57-49b8-b08e-f71b0621564d.png?v=1775119256",
+    "trend": {
+      "2026-03-26": 5,
+      "2026-03-27": 10,
+      "2026-03-28": 12,
+      "2026-03-29": 8,
+      "2026-03-30": 7,
+      "2026-04-01": 14,
+      "2026-04-02": 16,
+      "2026-04-03": 18,
+      "2026-04-04": 18,
+      "2026-04-05": 18,
+      "2026-04-06": 18
+    }
+  },
+  {
+    "handle": "electricity-saving-box",
+    "title": "🔥55% OFF🔥Household Electricity Saving Box-Solve Your Battery Anxiety！！",
+    "price": "8.99",
+    "published_at": "2026-04-01",
+    "sites_count": 9,
+    "flagship_count": 4,
+    "sample_url": "https://shimmer07.com/products/electricity-saving-box",
+    "score": 33,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://shimmer07.com/cdn/shop/files/spp_20250617172118_0d6cf28f4a93f155ad640adcc837dcd6_a26630dc-8a92-43dd-9ecf-267474f05544.jpg?v=1775043474",
+    "trend": {
+      "2026-04-01": 8,
+      "2026-04-02": 9,
+      "2026-04-03": 9,
+      "2026-04-04": 9,
+      "2026-04-05": 9,
+      "2026-04-06": 9
+    }
+  },
+  {
+    "handle": "summer-car-seat-pad-with-advanced-cooling",
+    "title": "🔥New Hot Selling❤️‍🔥 Summer Car Seat Pad With Advanced Cooling",
+    "price": "17.99",
+    "published_at": "2026-03-28",
+    "sites_count": 12,
+    "flagship_count": 3,
+    "sample_url": "https://londonnk.com/products/summer-car-seat-pad-with-advanced-cooling",
+    "score": 32,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://rouvenor.com/cdn/shop/files/spp_shopify20260328132927_fc17f68009376f1e8230487409be0b8d_01e513ab-9884-4426-a2ed-5aa4e663db6c.jpg?v=1775115125",
+    "trend": {
+      "2026-03-29": 3,
+      "2026-03-30": 3,
+      "2026-04-02": 7,
+      "2026-04-03": 10,
+      "2026-04-04": 10,
+      "2026-04-05": 12,
+      "2026-04-06": 12
+    }
+  },
+  {
+    "handle": "inflatable-pool-floating-chair",
+    "title": "🏊 50% OFF! 💺 Inflatable Pool Lounger – Comfortable, Sturdy, and Perfect for Relaxing on the Water 🌊",
+    "price": "17.99",
+    "published_at": "2026-03-25",
+    "sites_count": 15,
+    "flagship_count": 2,
+    "sample_url": "https://londonnk.com/products/inflatable-pool-floating-chair",
+    "score": 31,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://londonnk.com/cdn/shop/files/spp_shopify20260325105433_f77933a64a187a71364a44de092832f0_874406f1-c55f-41fe-83ca-24f345bb450b.jpg?v=1774410001",
+    "trend": {
+      "2026-03-23": 5,
+      "2026-03-24": 10,
+      "2026-03-25": 13,
+      "2026-03-26": 15,
+      "2026-03-27": 11,
+      "2026-03-28": 7,
+      "2026-04-01": 15,
+      "2026-04-02": 15,
+      "2026-04-03": 15,
+      "2026-04-04": 15,
+      "2026-04-05": 15,
+      "2026-04-06": 15
+    }
+  },
+  {
+    "handle": "mopers",
+    "title": "💇‍♂️ 50% OFF NOW! ⚡ Men's Multi-function Electric Hair Clippers – Precision Blades, Rechargeable & Professional-Grade for Home Use ✂️",
+    "price": "19.99",
+    "published_at": "2026-03-25",
+    "sites_count": 10,
+    "flagship_count": 3,
+    "sample_url": "https://britneed.com/products/mopers",
+    "score": 30,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260104171534_96b57519a934ee61dbb9d18626b4c006_89c7eeb3-a3be-4e46-b56c-cdbdf459a399.jpg?v=1774406071",
+    "trend": {
+      "2026-03-23": 3,
+      "2026-03-25": 7,
+      "2026-03-26": 9,
+      "2026-03-27": 7,
+      "2026-03-28": 4,
+      "2026-04-01": 10,
+      "2026-04-02": 10,
+      "2026-04-03": 10,
+      "2026-04-04": 10,
+      "2026-04-05": 10,
+      "2026-04-06": 10
+    }
+  },
+  {
+    "handle": "self-adhesive-diy-window-screen-repair-tape",
+    "title": "Selbstklebendes DIY-Fensterscheiben-Reparaturband",
+    "price": "12.99",
+    "published_at": "2026-03-25",
+    "sites_count": 14,
+    "flagship_count": 2,
+    "sample_url": "https://hairstudiov.com/products/self-adhesive-diy-window-screen-repair-tape",
+    "score": 30,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://hairstudiov.com/cdn/shop/files/spp_shopify20260315010429_19cebfe2ce8c72740f138dd9c88099a1_11a87b42-d2e6-41cf-b0a0-b82389804d4f.jpg?v=1775122642",
+    "trend": {
+      "2026-03-23": 4,
+      "2026-03-24": 5,
+      "2026-03-25": 7,
+      "2026-03-26": 9,
+      "2026-04-01": 10,
+      "2026-04-02": 10,
+      "2026-04-03": 14,
+      "2026-04-04": 14,
+      "2026-04-05": 14,
+      "2026-04-06": 14
+    }
+  },
+  {
+    "handle": "solar-powered-ptz-security-camera-1",
+    "title": "🥳2026 HOT SALE🥳Solar-Powered PTZ Security Camera",
+    "price": "89.99",
+    "published_at": "2026-03-30T16:32:29+08:00",
+    "sites_count": 13,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/solar-powered-ptz-security-camera-1",
+    "score": 29,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260326112701_3c2f43171dfa953d78a465f72eab9dba_cd3404de-5312-42ac-8c6a-c1092c77dd8c.png?v=1775037457",
+    "trend": {
+      "2026-03-31": 4,
+      "2026-04-01": 9,
+      "2026-04-02": 12,
+      "2026-04-03": 13,
+      "2026-04-04": 13,
+      "2026-04-05": 13,
+      "2026-04-06": 13
+    }
+  },
+  {
+    "handle": "drohsern",
+    "title": "🔥🔥60% off this week! 🎉MantaVision – The app-controlled surface drone for exploring bodies of water",
+    "price": "36.99",
+    "published_at": "2026-03-30T04:54:18+02:00",
+    "sites_count": 13,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/drohsern",
+    "score": 29,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://hairstudiov.com/cdn/shop/files/5_9193a7eb-5a4a-4492-b81b-71c14a60dc46.webp?v=1775015402",
+    "trend": {
+      "2026-03-30": 3,
+      "2026-03-31": 4,
+      "2026-04-01": 8,
+      "2026-04-02": 8,
+      "2026-04-03": 12,
+      "2026-04-04": 13,
+      "2026-04-05": 13,
+      "2026-04-06": 13
+    }
+  },
+  {
+    "handle": "organisateur",
+    "title": "💥Fabric shoe organizer, storage box",
+    "price": "15.99",
+    "published_at": "2026-03-25",
+    "sites_count": 13,
+    "flagship_count": 2,
+    "sample_url": "https://britneed.com/products/organisateur",
+    "score": 29,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20250830230447_51f6b3ec4750fe3a08dacfea69e7c380_ecf8e2cb-068d-4b8f-befa-020ed45c534a.png?v=1774413253",
+    "trend": {
+      "2026-03-25": 11,
+      "2026-03-26": 12,
+      "2026-03-27": 11,
+      "2026-03-28": 10,
+      "2026-04-01": 13,
+      "2026-04-02": 13,
+      "2026-04-03": 13,
+      "2026-04-04": 13,
+      "2026-04-05": 13,
+      "2026-04-06": 13
+    }
+  },
+  {
+    "handle": "solfontaener-xp-1",
+    "title": "⏳Time-Limited Special⏰Compact Solar Bird Fountain Pump – Keep Your Garden Alive! 🐦️",
+    "price": "19.99",
+    "published_at": "2026-03-25",
+    "sites_count": 13,
+    "flagship_count": 2,
+    "sample_url": "https://sowhathow.com/products/solfontaener-xp-1",
+    "score": 29,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://sowhathow.com/cdn/shop/files/c9f0f895fb98ab9159f51fd0297e236d.gif?v=1774430445",
+    "trend": {
+      "2026-03-24": 10,
+      "2026-03-25": 11,
+      "2026-03-26": 13,
+      "2026-03-27": 10,
+      "2026-04-01": 13,
+      "2026-04-02": 13,
+      "2026-04-03": 13,
+      "2026-04-04": 13,
+      "2026-04-05": 13,
+      "2026-04-06": 13
+    }
+  },
+  {
+    "handle": "qchlj",
+    "title": "3‑in‑1 SiO₂ Ceramic Quick Coat Spray – Waterless Wash, Streak‑Free Gloss & Rain‑Beading Shield",
+    "price": "11.99",
+    "published_at": "2026-03-30",
+    "sites_count": 12,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/qchlj",
+    "score": 28,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260120165504_0cb347561ed4250d7cce28990c925aa8_aea5cb32-699b-4fb4-a2d8-f1df65b88279.jpg?v=1774860294",
+    "trend": {
+      "2026-03-27": 7,
+      "2026-03-28": 6,
+      "2026-03-29": 6,
+      "2026-03-30": 5,
+      "2026-03-31": 3,
+      "2026-04-01": 12,
+      "2026-04-02": 12,
+      "2026-04-03": 12,
+      "2026-04-04": 12,
+      "2026-04-05": 12,
+      "2026-04-06": 12
+    }
+  },
+  {
+    "handle": "elegant-peep-toe-buckle-heeled-sandals",
+    "title": "👡 Der letzte Tag 50% RABATT! ✨ Elegante Peep-Toe-Sandalen mit Schnallenabsatz – Stilvoll, Bequem & Perfekt Für Jeden Anlass 🌸",
+    "price": "32.98",
+    "published_at": "2026-03-30T12:11:32+02:00",
+    "sites_count": 16,
+    "flagship_count": 1,
+    "sample_url": "https://hairstudiov.com/products/elegant-peep-toe-buckle-heeled-sandals",
+    "score": 28,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://copensunny.com/cdn/shop/files/spp_shopify20260325171759_3e49414187079b99904a55aaba94d600_dc3b8dd6-d4f1-4f55-bed9-f02b053de392.png?v=1774931410",
+    "trend": {
+      "2026-03-30": 6,
+      "2026-03-31": 13,
+      "2026-04-01": 15,
+      "2026-04-02": 15,
+      "2026-04-03": 16,
+      "2026-04-04": 16,
+      "2026-04-05": 16,
+      "2026-04-06": 16
+    }
+  },
+  {
+    "handle": "5-piece-stainless-steel-cookware-set-with-glass-lids",
+    "title": "📢📢 -60% AUF 5-TEILIGES KOCHSET! 💎 Robuster Edelstahl, Glasdeckel & Elegante Gold-Akzente",
+    "price": "54.99",
+    "published_at": "2026-03-30T04:06:53+02:00",
+    "sites_count": 20,
+    "flagship_count": 0,
+    "sample_url": "https://hairstudiov.com/products/5-piece-stainless-steel-cookware-set-with-glass-lids",
+    "score": 28,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://hairstudiov.com/cdn/shop/files/spp_shopify20260320161559_1f5ee50f8cb9604d0b22bd6b3427616d_9d75f4a0-d4d7-4098-a885-16502e582231.png?v=1775016622",
+    "trend": {
+      "2026-03-23": 6,
+      "2026-03-24": 9,
+      "2026-03-28": 4,
+      "2026-03-29": 4,
+      "2026-03-30": 4,
+      "2026-03-31": 6,
+      "2026-04-01": 20,
+      "2026-04-02": 20,
+      "2026-04-03": 20,
+      "2026-04-04": 20,
+      "2026-04-05": 20,
+      "2026-04-06": 20
+    }
+  },
+  {
+    "handle": "houstonget-car-interior-cleaner",
+    "title": "✨🔥All-Purpose Degreaser Spray🧼Remove Stains in 1 Second! ⚡",
+    "price": "18.99",
+    "published_at": "2026-03-31T03:31:36-06:00",
+    "sites_count": 8,
+    "flagship_count": 3,
+    "sample_url": "https://rouvenor.com/products/houstonget-car-interior-cleaner",
+    "score": 28,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://copensunny.com/cdn/shop/files/spp_shopify20260324093551_f0e5a4e6b41f087ec1b03d34b01bee86_902149c7-88e5-4906-9c80-c0ad49e65137.png?v=1775111725",
+    "trend": {
+      "2026-04-01": 4,
+      "2026-04-02": 6,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "thickened-soft-silicone-multi-purpose-broom",
+    "title": "✨ Thickened Soft Silicone Multi-Purpose Broom! 🧹",
+    "price": "14.99",
+    "published_at": "2026-03-30T11:42:10+08:00",
+    "sites_count": 11,
+    "flagship_count": 2,
+    "sample_url": "https://londonnk.com/products/thickened-soft-silicone-multi-purpose-broom",
+    "score": 27,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://londonnk.com/cdn/shop/files/spp_shopify20250905091137_f4b85b1a110d528d2e718315cfd8011f_0b0890b4-b4d0-401d-88c5-493bfc50fa99.png?v=1775015855",
+    "trend": {
+      "2026-03-31": 4,
+      "2026-04-01": 9,
+      "2026-04-02": 10,
+      "2026-04-03": 11,
+      "2026-04-04": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "car-plastic-parts-crystal-coating-restorer",
+    "title": "Lackbeschichtungs-Restaurator für Autos",
+    "price": "14.99",
+    "published_at": "2026-03-29T20:52:59-06:00",
+    "sites_count": 15,
+    "flagship_count": 1,
+    "sample_url": "https://perlolab.com/products/car-plastic-parts-crystal-coating-restorer",
+    "score": 27,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://perlolab.com/cdn/shop/files/spp_shopify20260325145340_fd543a3fde74c949d9bb2fcb82e2c16b_d2640d37-c2a3-4612-8f4b-c3a59ef8cc93.png?v=1775011860",
+    "trend": {
+      "2026-03-26": 6,
+      "2026-03-27": 9,
+      "2026-03-28": 10,
+      "2026-03-29": 10,
+      "2026-03-30": 9,
+      "2026-03-31": 4,
+      "2026-04-01": 15,
+      "2026-04-02": 15,
+      "2026-04-03": 15,
+      "2026-04-04": 15,
+      "2026-04-05": 15,
+      "2026-04-06": 15
+    }
+  },
+  {
+    "handle": "quick-connector",
+    "title": "✨50% off✨3/4 Inch Garden Hose Quick Connector",
+    "price": "7.99",
+    "published_at": "2026-03-25",
+    "sites_count": 11,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/quick-connector",
+    "score": 27,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20251111175526_c199cf85d423306495972bf2838a8f30_0b5cb6f7-57b4-46fd-819c-33e310d6dafc.jpg?v=1774410686",
+    "trend": {
+      "2026-03-24": 7,
+      "2026-03-25": 11,
+      "2026-03-26": 11,
+      "2026-03-27": 9,
+      "2026-03-28": 4,
+      "2026-04-01": 11,
+      "2026-04-02": 11,
+      "2026-04-03": 11,
+      "2026-04-04": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "handheld-multi-hole-bubble-machine",
+    "title": "🫧Limited-time Offer: 50% OFF!— Handheld Multi-hole Bubble Machine",
+    "price": "21.99",
+    "published_at": "2026-03-24",
+    "sites_count": 11,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/handheld-multi-hole-bubble-machine",
+    "score": 27,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260104160835_c363cb2dc425fe8f59365697fb9e36de_b2bbecab-31df-403e-b0d9-0177e3608e0d.jpg?v=1774333318",
+    "trend": {
+      "2026-03-23": 17,
+      "2026-03-24": 20,
+      "2026-03-25": 17,
+      "2026-03-26": 11,
+      "2026-04-01": 11,
+      "2026-04-02": 11,
+      "2026-04-03": 11,
+      "2026-04-04": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "wood-grain-peel-and-stick-floor-tile-5-pcs-set",
+    "title": "🧱 BUY 3 GET 5 FREE! 🔥（36 in × 6 in × 1/8 in）🏠 Wood Grain Peel and Stick Floor Tiles ， Self-Adhesive, Waterproof & Easy DIY Installation 🌿",
+    "price": "9.99",
+    "published_at": "2026-03-25",
+    "sites_count": 15,
+    "flagship_count": 1,
+    "sample_url": "https://surebrit.com/products/wood-grain-peel-and-stick-floor-tile-5-pcs-set",
+    "score": 27,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://surebrit.com/cdn/shop/files/spp_shopify20251231181330_1e5a43afb44e54426fcede716e07791b_bd28590c-1d04-4afc-a3b7-a5d303ca5a2b.jpg?v=1774430700",
+    "trend": {
+      "2026-03-23": 7,
+      "2026-03-24": 11,
+      "2026-03-25": 11,
+      "2026-03-26": 14,
+      "2026-04-01": 15,
+      "2026-04-02": 15,
+      "2026-04-03": 15,
+      "2026-04-04": 15,
+      "2026-04-05": 15,
+      "2026-04-06": 15
+    }
+  },
+  {
+    "handle": "mhbsq",
+    "title": "📢📢50 % de réduction !! ⏰Clé Universelle 8-22mm",
+    "price": "19.99",
+    "published_at": "2026-03-27",
+    "sites_count": 14,
+    "flagship_count": 1,
+    "sample_url": "https://savemorer.net/products/mhbsq",
+    "score": 26,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://savemorer.net/cdn/shop/files/spp_shopify20260327152053_26ed5ef22289516dc4cb5c5b66e4ce28_c25cc4f3-b8a1-4f3e-8437-d1e4d7081aae.jpg?v=1774597902",
+    "trend": {
+      "2026-03-25": 4,
+      "2026-03-26": 10,
+      "2026-03-27": 14,
+      "2026-03-28": 11,
+      "2026-03-29": 9,
+      "2026-03-30": 4,
+      "2026-04-01": 14,
+      "2026-04-02": 14,
+      "2026-04-03": 14,
+      "2026-04-04": 14,
+      "2026-04-05": 14,
+      "2026-04-06": 14
+    }
+  },
+  {
+    "handle": "solfontaener-xp",
+    "title": "💧60% OFF NOW! ☀️ Solar Fountain Bird Bath Pump – 1.4W Solar Panel, 4 Nozzles & Submersible for Pond, Garden & Pool 🐦",
+    "price": "16.99",
+    "published_at": "2026-03-25",
+    "sites_count": 18,
+    "flagship_count": 0,
+    "sample_url": "https://clarioy.com/products/solfontaener-xp",
+    "score": 26,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://clarioy.com/cdn/shop/files/spp_20240830163027_3693b520e98823da54c5902a978685d0_18533bcd-f7dc-49af-8db7-24b57a9acc16.jpg?v=1774427455",
+    "trend": {
+      "2026-03-28": 6,
+      "2026-04-01": 18,
+      "2026-04-02": 18,
+      "2026-04-03": 18,
+      "2026-04-04": 18,
+      "2026-04-05": 18,
+      "2026-04-06": 18
+    }
+  },
+  {
+    "handle": "rechargeable-electric-water-gun",
+    "title": "🔫 HOT SALE! ⚡ Rechargeable Electric Water Gun – Automatic Water Injection, Long Shooting Range, Large Capacity, Perfect for Summer Outdoor Fun & Kids Toys 💦",
+    "price": "24.99",
+    "published_at": "2026-03-26",
+    "sites_count": 9,
+    "flagship_count": 2,
+    "sample_url": "https://kingwwy.com/products/rechargeable-electric-water-gun",
+    "score": 25,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://kingwwy.com/cdn/shop/files/spp_shopify20260316141333_1b70db3c4fca31c4c02d97df66f065e8_9d2bb40a-2a41-457b-b850-9228ba2b4a6f.jpg?v=1774507636",
+    "trend": {
+      "2026-03-23": 4,
+      "2026-03-24": 5,
+      "2026-03-25": 7,
+      "2026-03-26": 9,
+      "2026-03-29": 3,
+      "2026-04-01": 9,
+      "2026-04-02": 9,
+      "2026-04-03": 9,
+      "2026-04-04": 9,
+      "2026-04-05": 9,
+      "2026-04-06": 9
+    }
+  },
+  {
+    "handle": "non-slip-thick-sole-cloud-slides-for-men",
+    "title": "📢📢60 % de réduction !! ⏰Sandales Cloud à semelle épaisse antidérapante pour homme",
+    "price": "24.99",
+    "published_at": "2026-03-30T05:29:59-04:00",
+    "sites_count": 17,
+    "flagship_count": 0,
+    "sample_url": "https://dreanno.com/products/non-slip-thick-sole-cloud-slides-for-men",
+    "score": 25,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://roseionly.com/cdn/shop/files/spp_shopify20260328145135_a200aab951b6424a8b443ceff3b7d27f_4a1f30bd-b8fc-4d62-a649-c4620f75260d.jpg?v=1775015305",
+    "trend": {
+      "2026-03-30": 7,
+      "2026-03-31": 10,
+      "2026-04-01": 15,
+      "2026-04-02": 17,
+      "2026-04-03": 17,
+      "2026-04-04": 17,
+      "2026-04-05": 17,
+      "2026-04-06": 17
+    }
+  },
+  {
+    "handle": "pot-bottom-stain-grime-remover",
+    "title": "🧼 50% RABATT AUF DEN KRAFTVOLLEN TOPFREINIGER! ✨ Löst eingebranntes Fett mühelos & hinterlässt strahlenden Glanz 🍊",
+    "price": "19.98",
+    "published_at": "2026-03-26",
+    "sites_count": 13,
+    "flagship_count": 1,
+    "sample_url": "https://houstape.com/products/pot-bottom-stain-grime-remover",
+    "score": 25,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://houstape.com/cdn/shop/files/spp_shopify20260318002511_90b0be1719fdde8c0835b5a5b086d6e6_ced5152b-f954-406f-8efe-b705b4dfbc0f.jpg?v=1774495101",
+    "trend": {
+      "2026-03-24": 8,
+      "2026-03-25": 13,
+      "2026-03-26": 13,
+      "2026-04-01": 13,
+      "2026-04-02": 13,
+      "2026-04-03": 13,
+      "2026-04-04": 13,
+      "2026-04-05": 13,
+      "2026-04-06": 13
+    }
+  },
+  {
+    "handle": "surprise",
+    "title": "🎁Easter Hot Sale 50% OFF🥰💖Magic Hatching and Growing Pet Egg Toy",
+    "price": "8.99",
+    "published_at": "2026-03-23",
+    "sites_count": 8,
+    "flagship_count": 2,
+    "sample_url": "https://britneed.com/products/surprise",
+    "score": 24,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260318121209_99f289bcc76dda8230987a7b57542aeb_8a87a7c7-1108-48f8-ae07-959ce0abc53a.jpg?v=1774233279",
+    "trend": {
+      "2026-03-23": 6,
+      "2026-03-24": 7,
+      "2026-03-25": 8,
+      "2026-03-26": 8,
+      "2026-04-01": 8,
+      "2026-04-02": 8,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "ipl-ice-cooling-hair-removal-device",
+    "title": "✅ 49% OFF – don't miss out! ⏰✨IPL Ice-Cooling Hair Removal Device💎A little pricey, but worth every penny. 💎",
+    "price": "59.99",
+    "published_at": "2026-03-30T16:46:15+08:00",
+    "sites_count": 11,
+    "flagship_count": 1,
+    "sample_url": "https://britneed.com/products/ipl-ice-cooling-hair-removal-device",
+    "score": 23,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-04-01": 7,
+      "2026-04-02": 10,
+      "2026-04-03": 11,
+      "2026-04-04": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "womens-casual-loose-overall-dress-with-pockets",
+    "title": "👗 50% OFF NOW! 🌸Women's Casual Loose Overall Dress – Relaxed Fit, Side Pockets & Breathable Fabric ✨",
+    "price": "16.99",
+    "published_at": "2026-03-29",
+    "sites_count": 11,
+    "flagship_count": 1,
+    "sample_url": "https://loungon.com/products/womens-casual-loose-overall-dress-with-pockets",
+    "score": 23,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260326140546_efb421d594b6458337f5acb9a92533c2_812d8789-dbee-4763-b43e-5d96046f0a91.png?v=1775190556",
+    "trend": {
+      "2026-03-27": 3,
+      "2026-03-28": 3,
+      "2026-03-29": 3,
+      "2026-03-30": 5,
+      "2026-03-31": 5,
+      "2026-04-01": 8,
+      "2026-04-03": 10,
+      "2026-04-04": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "innga",
+    "title": "🏖️Inflatable Pool Floating Chair",
+    "price": "17.99",
+    "published_at": "2026-03-27",
+    "sites_count": 11,
+    "flagship_count": 1,
+    "sample_url": "https://loungon.com/products/innga",
+    "score": 23,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260324192040_7a88488ca0b31d83425c15efb355e4fd_6f35c33a-d718-4fe2-9630-b87f3c395ea9.jpg?v=1774582768",
+    "trend": {
+      "2026-03-27": 6,
+      "2026-03-28": 9,
+      "2026-03-29": 9,
+      "2026-03-30": 6,
+      "2026-04-01": 11,
+      "2026-04-02": 11,
+      "2026-04-03": 11,
+      "2026-04-04": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "matrelp",
+    "title": "🔥🎁Nouveauté : 50 % de réduction💥Pompe électrique rechargeable pour l'eau et l'huile",
+    "price": "14.99",
+    "published_at": "2026-03-26",
+    "sites_count": 11,
+    "flagship_count": 1,
+    "sample_url": "https://copensunny.com/products/matrelp",
+    "score": 23,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-03-24": 6,
+      "2026-03-26": 8,
+      "2026-03-27": 10,
+      "2026-03-28": 5,
+      "2026-03-29": 4,
+      "2026-04-01": 11,
+      "2026-04-02": 11,
+      "2026-04-03": 11,
+      "2026-04-04": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "portablk",
+    "title": "⏳Time-Limited Special⏰Portable Oral Irrigator Water Flosser",
+    "price": "24.99",
+    "published_at": "2026-04-01",
+    "sites_count": 7,
+    "flagship_count": 2,
+    "sample_url": "https://londonnk.com/products/portablk",
+    "score": 23,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://londonnk.com/cdn/shop/files/spp_shopify20250924105048_60d8a0fe601ff5f5a8c637664e139ebb_70431a8e-7784-4dd2-9254-77189e6de244.jpg?v=1775037155",
+    "trend": {
+      "2026-04-01": 6,
+      "2026-04-02": 7,
+      "2026-04-03": 7,
+      "2026-04-04": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "wool-polishing",
+    "title": "⚙️ BUY 1 GET 1 FREE! 🔥 Wool Felt Flap Polishing Disc – High-Performance, Fine Polishing & Long-Lasting Use ✨",
+    "price": "9.99",
+    "published_at": "2026-03-25",
+    "sites_count": 7,
+    "flagship_count": 2,
+    "sample_url": "https://charm-cart.com/products/wool-polishing",
+    "score": 23,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://charm-cart.com/cdn/shop/files/1_b671c78c-0613-4eea-abf2-c7aadc2206db.jpg?v=1775182724",
+    "trend": {
+      "2026-03-26": 3,
+      "2026-04-03": 7,
+      "2026-04-04": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "bsmucl",
+    "title": "🔥 NEW HOT SALE 🔥Multi-purpose enzyme foam cleaner, versatile – Kitchen & Home",
+    "price": "9.99",
+    "published_at": "2026-03-27",
+    "sites_count": 11,
+    "flagship_count": 1,
+    "sample_url": "https://shimmer07.com/products/bsmucl",
+    "score": 23,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://shimmer07.com/cdn/shop/files/spp_shopify20260316114840_2dfde45f93bd212b5caae6cc8cc0fd28_a5dac72c-5d16-4e6b-8221-96b8f5c2ddb4.jpg?v=1774574467",
+    "trend": {
+      "2026-03-23": 11,
+      "2026-03-24": 13,
+      "2026-03-27": 4,
+      "2026-04-01": 11,
+      "2026-04-02": 11,
+      "2026-04-03": 11,
+      "2026-04-04": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "gentle-and-non-irritating-hair-removal-cream",
+    "title": "Gentle and Non-Irritating Hair Removal Cream|Limited-time offer🎁",
+    "price": "12.90",
+    "published_at": "2026-03-30T19:44:54+08:00",
+    "sites_count": 6,
+    "flagship_count": 2,
+    "sample_url": "https://britneed.com/products/gentle-and-non-irritating-hair-removal-cream",
+    "score": 22,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260330144414_7d02c99bc095ca600412f02390f1519f_b814ec31-a756-464a-935d-4ea93fbb3a78.jpg?v=1775095740",
+    "trend": {
+      "2026-03-31": 3,
+      "2026-04-01": 3,
+      "2026-04-02": 5,
+      "2026-04-03": 6,
+      "2026-04-04": 6,
+      "2026-04-05": 6,
+      "2026-04-06": 6
+    }
+  },
+  {
+    "handle": "lakit",
+    "title": "⏳Time-Limited Special⏰Compact Solar Bird Fountain Pump – Keep Your Garden Alive! 🐦️",
+    "price": "19.99",
+    "published_at": "2026-03-26",
+    "sites_count": 10,
+    "flagship_count": 1,
+    "sample_url": "https://clarioy.com/products/lakit",
+    "score": 22,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://clarioy.com/cdn/shop/files/spp_shopify20260323153823_268f9b763c8f12071c450235c5b09e47.gif?v=1774526179",
+    "trend": {
+      "2026-03-24": 6,
+      "2026-03-25": 6,
+      "2026-03-26": 6,
+      "2026-03-28": 5,
+      "2026-03-29": 4,
+      "2026-04-01": 10,
+      "2026-04-02": 10,
+      "2026-04-03": 10,
+      "2026-04-04": 10,
+      "2026-04-05": 10,
+      "2026-04-06": 10
+    }
+  },
+  {
+    "handle": "flattering-square-neck-maxi-dress",
+    "title": "💎 50 % DE RÉDUCTION SUR LA ROBE LONGUE À MOTIFS FLORAUX ! 💎 Encolure carrée, corsage froncé et bordure à volants pour un look chic et décontracté ✨",
+    "price": "32.98",
+    "published_at": "2026-03-31",
+    "sites_count": 14,
+    "flagship_count": 0,
+    "sample_url": "https://gofiveus.com/products/flattering-square-neck-maxi-dress",
+    "score": 22,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://outdhaven.com/cdn/shop/files/spp_shopify20260331161040_86cf9c5b49f360e553260cb7fc37a300_ce96f0ee-600b-408e-a2a3-c1be674e2195.png?v=1774944687",
+    "trend": {
+      "2026-03-31": 4,
+      "2026-04-01": 10,
+      "2026-04-02": 13,
+      "2026-04-03": 14,
+      "2026-04-04": 14,
+      "2026-04-05": 14,
+      "2026-04-06": 14
+    }
+  },
+  {
+    "handle": "womens-casual-short-sleeve-top-wide-leg-pants-set",
+    "title": "Women's Casual Short Sleeve Top & Wide Leg Pants Set",
+    "price": "34.99",
+    "published_at": "2026-03-30T01:58:24-02:00",
+    "sites_count": 14,
+    "flagship_count": 0,
+    "sample_url": "https://knownyo.com/products/womens-casual-short-sleeve-top-wide-leg-pants-set",
+    "score": 22,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://knownyo.com/cdn/shop/files/spp_shopify20260326143348_5db16cff04c1417bf6e9735be203b3df_dd020c4c-f382-43f5-a170-3c02d3f7ab2e.png?v=1775022447",
+    "trend": {
+      "2026-03-29": 5,
+      "2026-03-30": 5,
+      "2026-03-31": 5,
+      "2026-04-01": 13,
+      "2026-04-02": 13,
+      "2026-04-03": 14,
+      "2026-04-04": 14,
+      "2026-04-05": 14,
+      "2026-04-06": 14
+    }
+  },
+  {
+    "handle": "coupling",
+    "title": "🔥New Style＆50％ OFF🔥Trailer Hitch Coupling Cap – Perfect Fit & Long-Lasting Protection! ✨",
+    "price": "9.99",
+    "published_at": "2026-03-25",
+    "sites_count": 6,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/coupling",
+    "score": 22,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260323155339_070e68e9f6405c40a21a2c07f30a90e5_f8ba1acf-ace3-495c-82d1-06089a77ef77.png?v=1774422896",
+    "trend": {
+      "2026-03-23": 9,
+      "2026-03-24": 8,
+      "2026-03-25": 8,
+      "2026-03-26": 6,
+      "2026-03-27": 3,
+      "2026-04-01": 6,
+      "2026-04-02": 6,
+      "2026-04-03": 6,
+      "2026-04-04": 6,
+      "2026-04-05": 6,
+      "2026-04-06": 6
+    }
+  },
+  {
+    "handle": "hdmi",
+    "title": "💥HOT SALE💥Limited-time offer-USB-C Docking Station Laptop Stand with 4K HDMI",
+    "price": "29.99",
+    "published_at": "2026-03-23",
+    "sites_count": 10,
+    "flagship_count": 1,
+    "sample_url": "https://bebuyby.com/products/hdmi",
+    "score": 22,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://bebuyby.com/cdn/shop/files/spp_20250709142600_43dde212ed37ad9c394109406f206987_4886a693-b559-4fb2-9d90-2f2d6bb6783e.jpg?v=1774260436",
+    "trend": {
+      "2026-03-23": 16,
+      "2026-03-24": 17,
+      "2026-03-25": 12,
+      "2026-04-01": 10,
+      "2026-04-02": 10,
+      "2026-04-03": 10,
+      "2026-04-04": 10,
+      "2026-04-05": 10,
+      "2026-04-06": 10
+    }
+  },
+  {
+    "handle": "mens-modern-mandarin-collar-tunic-and-pants-set",
+    "title": "👔 65% OFF! 🔥 Men's Modern Mandarin Collar Tunic and Pants Set – Elegant Design, Comfortable Fit & Perfect For Festive Occasions 🎩",
+    "price": "27.99",
+    "published_at": "2026-03-25",
+    "sites_count": 14,
+    "flagship_count": 0,
+    "sample_url": "https://sempornai.com/products/mens-modern-mandarin-collar-tunic-and-pants-set",
+    "score": 22,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://sempornai.com/cdn/shop/files/spp_shopify20260324102134_1f7c60d20ce2caff6de55e985f18ab8a_cda657a2-0c2d-4233-8f14-2f268d5bc373.jpg?v=1774410497",
+    "trend": {
+      "2026-03-25": 11,
+      "2026-03-28": 11,
+      "2026-04-01": 14,
+      "2026-04-02": 14,
+      "2026-04-03": 14,
+      "2026-04-04": 14,
+      "2026-04-05": 14,
+      "2026-04-06": 14
+    }
+  },
+  {
+    "handle": "non-stick-carbon-steel-baking-pan",
+    "title": "🔥 Bestseller 2026 | Carbon Steel Baking Tray Non-Stick | Easy Release & Quick Clean 🍳【-50% This Week】",
+    "price": "13.99",
+    "published_at": "2026-03-30T02:33:53-08:00",
+    "sites_count": 5,
+    "flagship_count": 2,
+    "sample_url": "https://britneed.com/products/non-stick-carbon-steel-baking-pan",
+    "score": 21,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260228104106_de0b85c4d4abea26cb9a53d7650e3a74_2880a337-e14c-404a-8efc-52febf9f3fb7.png?v=1774951646",
+    "trend": {
+      "2026-03-31": 4,
+      "2026-04-01": 5,
+      "2026-04-02": 5,
+      "2026-04-03": 5,
+      "2026-04-04": 5,
+      "2026-04-05": 5,
+      "2026-04-06": 5
+    }
+  },
+  {
+    "handle": "steamer-1",
+    "title": "🔥Garment steamer for clothes, 👔hand steamer & iron 2 in 1, 15-second rapid heating, large control panel, suitable for worldwide travel💨",
+    "price": "24.99",
+    "published_at": "2026-03-30",
+    "sites_count": 5,
+    "flagship_count": 2,
+    "sample_url": "https://londonnk.com/products/steamer-1",
+    "score": 21,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-03-31": 4,
+      "2026-04-01": 5,
+      "2026-04-02": 5,
+      "2026-04-03": 5,
+      "2026-04-04": 5,
+      "2026-04-05": 5,
+      "2026-04-06": 5
+    }
+  },
+  {
+    "handle": "lightweight-bb-cream",
+    "title": "[MISSHA Official] Perfect Cover Serum BB Cream (35ml) - Bifida Ferment Lysate Serum-Infused BB Cream for Anti-Aging Skin Rejuvenation, Skin Tint, Tinted Moisturizer, Skin Care Foundation Makeup,Superfood Complex,Glass Skin CardiBB OGBB PurpleBB",
+    "price": "12.99",
+    "published_at": "2026-03-26",
+    "sites_count": 5,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/lightweight-bb-cream",
+    "score": 21,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/3-24-1_bbbfc6a2-00f6-4831-9830-3bb3fd48e721.webp?v=1774508656",
+    "trend": {
+      "2026-03-26": 3,
+      "2026-03-27": 5,
+      "2026-03-28": 4,
+      "2026-03-29": 3,
+      "2026-04-01": 5,
+      "2026-04-02": 5,
+      "2026-04-03": 5,
+      "2026-04-04": 5,
+      "2026-04-05": 5,
+      "2026-04-06": 5
+    }
+  },
+  {
+    "handle": "car-headlight-repair-fluid",
+    "title": "🚗 50% OFF NOW! 🔆Professional Car Headlight Restoration Kit",
+    "price": "12.99",
+    "published_at": "2026-03-30T02:01:48-08:00",
+    "sites_count": 9,
+    "flagship_count": 1,
+    "sample_url": "https://bebuyby.com/products/car-headlight-repair-fluid",
+    "score": 21,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://bebuyby.com/cdn/shop/files/RHW0KHZ_09ad9dc2-7144-4c7a-ad07-bfc6dff5ab79.jpg?v=1774968998",
+    "trend": {
+      "2026-03-30": 4,
+      "2026-03-31": 6,
+      "2026-04-01": 9,
+      "2026-04-02": 9,
+      "2026-04-03": 9,
+      "2026-04-04": 9,
+      "2026-04-05": 9,
+      "2026-04-06": 9
+    }
+  },
+  {
+    "handle": "cotton-linen-pants",
+    "title": "Damen Leinenhose, locker geschnittene Wide-Leg-Hose mit Taschen und Kordelzug, bequem und ideal für Freizeit und Alltag",
+    "price": "26.99",
+    "published_at": "2026-03-28",
+    "sites_count": 9,
+    "flagship_count": 1,
+    "sample_url": "https://jeaniny.com/products/cotton-linen-pants",
+    "score": 21,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://jeaniny.com/cdn/shop/files/spp_20250616092817_1a64051fcbd722cd15f8f8bb6fa6a33c_4b539eaf-58d8-43b6-bbea-3ae66ddae9c2.jpg?v=1774695987",
+    "trend": {
+      "2026-03-25": 5,
+      "2026-03-27": 6,
+      "2026-03-28": 5,
+      "2026-03-30": 3,
+      "2026-04-01": 9,
+      "2026-04-02": 9,
+      "2026-04-03": 9,
+      "2026-04-04": 9,
+      "2026-04-05": 9,
+      "2026-04-06": 9
+    }
+  },
+  {
+    "handle": "fasop",
+    "title": "👚 50% DE RÉDUCTION! 🔥 Top Ample à Manches Courtes Tendance – Col en V Cranté, Ourlet Asymétrique & Tissu Léger (5 Couleurs, S–2XL) 🌸",
+    "price": "24.99",
+    "published_at": "2026-03-27",
+    "sites_count": 9,
+    "flagship_count": 1,
+    "sample_url": "https://biaotic.com/products/fasop",
+    "score": 21,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://biaotic.com/cdn/shop/files/spp_20250723101746_fe0dd139fb5928830fa46516ab170b1c_1a055491-d0ab-496a-81de-29178dd1ab8b.png?v=1774577509",
+    "trend": {
+      "2026-03-23": 3,
+      "2026-03-24": 5,
+      "2026-03-25": 6,
+      "2026-03-26": 7,
+      "2026-03-28": 4,
+      "2026-03-29": 4,
+      "2026-04-01": 9,
+      "2026-04-02": 9,
+      "2026-04-03": 9,
+      "2026-04-04": 9,
+      "2026-04-05": 9,
+      "2026-04-06": 9
+    }
+  },
+  {
+    "handle": "folding-handheld-magnifying-glass-with-light-for-reading",
+    "title": "Klappbare Handlupe mit Licht zum Lesen",
+    "price": "24.99",
+    "published_at": "2026-03-27",
+    "sites_count": 13,
+    "flagship_count": 0,
+    "sample_url": "https://hairstudiov.com/products/folding-handheld-magnifying-glass-with-light-for-reading",
+    "score": 21,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://hairstudiov.com/cdn/shop/files/spp_shopify20260330104211_11ed99d8bdf9c13943c4efae7fd2801b_93305e37-72e8-423f-bdf2-b6cbb1480857.jpg?v=1775037633",
+    "trend": {
+      "2026-03-29": 6,
+      "2026-03-30": 5,
+      "2026-04-01": 8,
+      "2026-04-02": 11,
+      "2026-04-03": 13,
+      "2026-04-04": 13,
+      "2026-04-05": 13,
+      "2026-04-06": 13
+    }
+  },
+  {
+    "handle": "hexagon-handle-screw",
+    "title": "🥳2026 HOT SALE🥳💞50K+ SOLD!👴🔧 50% OFF! 14-Piece Socket Wrench Set – Powerful hex grip, fits all common sizes. DIY repairs, save on garage costs. A must-have! 🛠️💰",
+    "price": "15.99",
+    "published_at": "2026-03-25",
+    "sites_count": 5,
+    "flagship_count": 2,
+    "sample_url": "https://londonnk.com/products/hexagon-handle-screw",
+    "score": 21,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://londonnk.com/cdn/shop/files/e59625f79b76e5ca5221744254a82acf.jpg?v=1774434639",
+    "trend": {
+      "2026-03-26": 5,
+      "2026-03-27": 4,
+      "2026-03-28": 4,
+      "2026-04-01": 5,
+      "2026-04-02": 5,
+      "2026-04-03": 5,
+      "2026-04-04": 5,
+      "2026-04-05": 5,
+      "2026-04-06": 5
+    }
+  },
+  {
+    "handle": "solar-powered-auto-operation",
+    "title": "⏳Limited Special 50%OFF⏰Compact Solar Bird Fountain Pump – Keep Your Garden Alive! 🐦️",
+    "price": "13.99",
+    "published_at": "2026-03-24",
+    "sites_count": 5,
+    "flagship_count": 2,
+    "sample_url": "https://boniss.com/products/solar-powered-auto-operation",
+    "score": 21,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://boniss.com/cdn/shop/files/spp_20240830163029_6daa3a01ea10c8e08b5238c0cd2daa6e_06fd2244-bf96-40b8-8daa-8e396bcf89dc.jpg?v=1774318574",
+    "trend": {
+      "2026-03-24": 4,
+      "2026-03-25": 5,
+      "2026-03-26": 5,
+      "2026-03-27": 4,
+      "2026-04-01": 5,
+      "2026-04-02": 5,
+      "2026-04-04": 5,
+      "2026-04-05": 5,
+      "2026-04-06": 5
+    }
+  },
+  {
+    "handle": "curling-tongs",
+    "title": "💥HOT SALE💥Sleep-in hairband Heat-free curling tongs🧑‍🦱🥰",
+    "price": "8.99",
+    "published_at": "2026-03-23",
+    "sites_count": 5,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/curling-tongs",
+    "score": 21,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/IMG_0647_adae8e40-c3b0-4291-807e-b2a243368313.jpg?v=1774249059",
+    "trend": {
+      "2026-03-23": 3,
+      "2026-03-24": 5,
+      "2026-03-25": 4,
+      "2026-03-26": 5,
+      "2026-04-04": 5,
+      "2026-04-05": 5,
+      "2026-04-06": 5
+    }
+  },
+  {
+    "handle": "matelp",
+    "title": "🔥🎁New arrival 50% OFF💥Rechargeable electric fluid pump for water and oil",
+    "price": "9.99",
+    "published_at": "2026-03-26",
+    "sites_count": 9,
+    "flagship_count": 1,
+    "sample_url": "https://loungon.com/products/matelp",
+    "score": 21,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260317104143_4e6b594a1ee2042223730ee3ed7bbd34_1b15cd13-e17a-4fc1-99c7-cc9651670420.png?v=1774498273",
+    "trend": {
+      "2026-03-26": 9,
+      "2026-03-27": 9,
+      "2026-04-01": 9,
+      "2026-04-02": 9,
+      "2026-04-04": 9,
+      "2026-04-05": 9,
+      "2026-04-06": 9
+    }
+  },
+  {
+    "handle": "solfontaener",
+    "title": "☀LAST DAY SALE 50% OFF!!🐦️⛲Compact Solar Bird Fountain Pump – Keep Your Garden Alive!",
+    "price": "9.99",
+    "published_at": "2026-03-29T21:14:56-04:00",
+    "sites_count": 13,
+    "flagship_count": 0,
+    "sample_url": "https://xigoot.com/products/solfontaener",
+    "score": 21,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://chic-lucky.com/cdn/shop/files/spp_20240830163029_6daa3a01ea10c8e08b5238c0cd2daa6e_147206aa-0c59-45d6-bab5-ce0323da5958.jpg?v=1774332264",
+    "trend": {
+      "2026-03-24": 5,
+      "2026-03-25": 6,
+      "2026-03-26": 8,
+      "2026-03-27": 8,
+      "2026-03-28": 3,
+      "2026-04-01": 12,
+      "2026-04-02": 13,
+      "2026-04-03": 13,
+      "2026-04-04": 13,
+      "2026-04-05": 13,
+      "2026-04-06": 13
+    }
+  },
+  {
+    "handle": "halter-top",
+    "title": "Women's Casual Halter Top & Wide-Leg Pants Set",
+    "price": "28.99",
+    "published_at": "2026-03-24",
+    "sites_count": 13,
+    "flagship_count": 0,
+    "sample_url": "https://bratiey.com/products/halter-top",
+    "score": 21,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-03-23": 3,
+      "2026-03-24": 10,
+      "2026-04-01": 13,
+      "2026-04-02": 13,
+      "2026-04-04": 13,
+      "2026-04-05": 13,
+      "2026-04-06": 13
+    }
+  },
+  {
+    "handle": "lean-save-dt",
+    "title": "🧳 50% OFF HOT DEAL ! ⚡ Pack of 6 Compression Bags for USB Electric Vacuum Cleaner – Space-Saving Storage, Airtight Seal, Reusable & Durable 🌀",
+    "price": "16.99",
+    "published_at": "2026-03-30T15:51:49+08:00",
+    "sites_count": 4,
+    "flagship_count": 2,
+    "sample_url": "https://boniss.com/products/lean-save-dt",
+    "score": 20,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://boniss.com/cdn/shop/files/1_73f5abe1-e0e2-4f4e-b810-19767d57d34a.png?v=1775028915",
+    "trend": {
+      "2026-03-31": 3,
+      "2026-04-01": 2,
+      "2026-04-02": 4,
+      "2026-04-03": 4,
+      "2026-04-04": 4,
+      "2026-04-05": 4,
+      "2026-04-06": 4
+    }
+  },
+  {
+    "handle": "tire-wax-1",
+    "title": "✨ Tire wax – restores black gloss, blocks UV, repels dirt. Easy & quick!",
+    "price": "8.99",
+    "published_at": "2026-03-30",
+    "sites_count": 4,
+    "flagship_count": 2,
+    "sample_url": "https://britneed.com/products/tire-wax-1",
+    "score": 20,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20251211103447_a1e889306f98974ecd64eee80943a3b4_979d5b01-fc48-4691-ac92-0c806ca07b95.png?v=1774836399",
+    "trend": {
+      "2026-03-30": 3,
+      "2026-03-31": 3,
+      "2026-04-01": 4,
+      "2026-04-02": 4,
+      "2026-04-03": 4,
+      "2026-04-04": 4,
+      "2026-04-05": 4,
+      "2026-04-06": 4
+    }
+  },
+  {
+    "handle": "rechargeable-portable-jet-fan",
+    "title": "Rechargeable Portable Jet Fan",
+    "price": "22.99",
+    "published_at": "2026-03-31",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://loungon.com/products/rechargeable-portable-jet-fan",
+    "score": 20,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260331110506_8932f691f176a894cfc4b99717423502_c317b44a-6c32-4a91-bd3c-c95b19e9682b.jpg?v=1774946971",
+    "trend": {
+      "2026-03-31": 6,
+      "2026-04-01": 6,
+      "2026-04-02": 8,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "msmw",
+    "title": "⌚ 50% OFF & Free Shipping NOW! 🪖 Men‘s Military Watch – Analog-Digital Display, Waterproof & Shock-Resistant 🛡️",
+    "price": "29.99",
+    "published_at": "2026-03-31",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://bebuyby.com/products/msmw",
+    "score": 20,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://bebuyby.com/cdn/shop/files/spp_shopify20260114105801_0b2d089c27ec135cd7fd9d24404df14f_ba95867e-fa0d-4148-93ba-b80f2ffc7fbb.png?v=1774954550",
+    "trend": {
+      "2026-04-01": 5,
+      "2026-04-02": 7,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "watchesy",
+    "title": "Waterproof Military Watch for Men – Analog-Digital, Stainless Steel & Shock-Resistant 🛡️",
+    "price": "34.99",
+    "published_at": "2026-03-30T14:34:39+08:00",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://cinihi.com/products/watchesy",
+    "score": 20,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://copensunny.com/cdn/shop/files/spp_shopify20260114105801_0b2d089c27ec135cd7fd9d24404df14f_9b78e674-f4ec-4773-a7c5-0166b628e07e.png?v=1774852481",
+    "trend": {
+      "2026-04-01": 4,
+      "2026-04-02": 6,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "urlung-1",
+    "title": "💐50% OFF ! Versatile Wire Puller – One Tool for All Your Wiring Projects 🛠️📦【Limited Offer】",
+    "price": "24.99",
+    "published_at": "2026-03-30T10:41:16+08:00",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://britneed.com/products/urlung-1",
+    "score": 20,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/1_fa3236c9-2fc4-4735-8ad0-0c9b3f5afff6.png?v=1774937438",
+    "trend": {
+      "2026-03-30": 3,
+      "2026-03-31": 7,
+      "2026-04-01": 8,
+      "2026-04-02": 8,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "waterpro",
+    "title": "🔥Super offre : 50 % DE RÉDUCTION🔥Mastic imperméable à séchage rapide pour joints",
+    "price": "13.99",
+    "published_at": "2026-03-30",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://biaotic.com/products/waterpro",
+    "score": 20,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_20250416155511_683d8c83ed6abee502a13562d4ad7b79_ee4868ae-bed8-4c45-a5f7-435140e9f5fd.jpg?v=1774229444",
+    "trend": {
+      "2026-03-24": 3,
+      "2026-03-25": 4,
+      "2026-03-26": 5,
+      "2026-03-29": 3,
+      "2026-03-30": 3,
+      "2026-04-01": 8,
+      "2026-04-02": 8,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "professional-car-headlight-restoration-kit",
+    "title": "🚗 ACHETEZ 2, OBTENEZ 1 GRATUIT! 💡 Kit Professionnel pour la Restauration des Phares de Voiture – Élimine le Jaunissement, Restaure la Clarté & Application Facile ✨",
+    "price": "19.99",
+    "published_at": "2026-03-30",
+    "sites_count": 12,
+    "flagship_count": 0,
+    "sample_url": "https://biaotic.com/products/professional-car-headlight-restoration-kit",
+    "score": 20,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-03-23": 4,
+      "2026-03-30": 6,
+      "2026-03-31": 5,
+      "2026-04-01": 10,
+      "2026-04-02": 11,
+      "2026-04-03": 12,
+      "2026-04-04": 12,
+      "2026-04-05": 12,
+      "2026-04-06": 12
+    }
+  },
+  {
+    "handle": "asf-57",
+    "title": "Tuyau de nettoyage à haute pression pour égouts avec buse",
+    "price": "21.99",
+    "published_at": "2026-03-31",
+    "sites_count": 4,
+    "flagship_count": 2,
+    "sample_url": "https://copensunny.com/products/asf-57",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://copensunny.com/cdn/shop/files/spp_shopify20251030120941_14baa0393f2855ce655f55c49c7cdf87_a2ed1253-652c-4b93-905a-08212bd778f2.jpg?v=1775050326",
+    "trend": {
+      "2026-03-23": 6,
+      "2026-03-24": 3,
+      "2026-03-25": 3,
+      "2026-04-01": 2,
+      "2026-04-02": 4,
+      "2026-04-03": 4,
+      "2026-04-04": 4,
+      "2026-04-05": 4,
+      "2026-04-06": 4
+    }
+  },
+  {
+    "handle": "chu",
+    "title": "🧹 50% OFF! ✨ Retractable Dust Brush - Telescopic Design for Cleaning Hard-to-Reach Spaces (Furniture/Appliances/Car) 🚗🔍",
+    "price": "19.99",
+    "published_at": "2026-03-31",
+    "sites_count": 4,
+    "flagship_count": 2,
+    "sample_url": "https://rouvenor.com/products/chu",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://rouvenor.com/cdn/shop/files/cb83d1ae578c746d1b4cc9f3b3f8f91c.jpg?v=1775027647",
+    "trend": {
+      "2026-04-01": 2,
+      "2026-04-02": 4,
+      "2026-04-03": 4,
+      "2026-04-04": 4,
+      "2026-04-05": 4,
+      "2026-04-06": 4
+    }
+  },
+  {
+    "handle": "touch-screen-bag",
+    "title": "🔥Hot Sale 49% OFF -🎁Women's Touch Screen Mobile Phone Messenger bag🤩",
+    "price": "10.90",
+    "published_at": "2026-03-26",
+    "sites_count": 4,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/touch-screen-bag",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_20250723094049_cf8b8f6ef0f44aefd5d7dc36469a30ba_84ad913e-64ae-4040-8607-ba21b2822327.jpg?v=1774513024",
+    "trend": {
+      "2026-03-25": 3,
+      "2026-03-26": 4,
+      "2026-03-27": 4,
+      "2026-04-01": 4,
+      "2026-04-02": 4,
+      "2026-04-04": 4,
+      "2026-04-05": 4,
+      "2026-04-06": 4
+    }
+  },
+  {
+    "handle": "yxqtz",
+    "title": "🔥 Limited-Time Sale⏰Multifunctional Cold Pressing Electrician Crimping Pliers Set",
+    "price": "14.90",
+    "published_at": "2026-03-25",
+    "sites_count": 4,
+    "flagship_count": 2,
+    "sample_url": "https://britneed.com/products/yxqtz",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/69ffd94a60b80c917ed3e11b0aef0262_d9528d6b-6696-481a-ad0e-104d58b10c85.jpg?v=1774407941",
+    "trend": {
+      "2026-03-25": 4,
+      "2026-03-26": 4,
+      "2026-03-27": 4,
+      "2026-04-01": 4,
+      "2026-04-02": 4,
+      "2026-04-04": 4,
+      "2026-04-05": 4,
+      "2026-04-06": 4
+    }
+  },
+  {
+    "handle": "water-resistant-large-capacity-bicycle-bag",
+    "title": "🚴 50% OFF NOW! 💧 Water-Resistant Large Capacity Bicycle Bag – Touch-Sensitive Phone Pouch, Slim Top-Tube Design & Dual Zippers 📱",
+    "price": "16.99",
+    "published_at": "2026-03-23",
+    "sites_count": 4,
+    "flagship_count": 2,
+    "sample_url": "https://boniss.com/products/water-resistant-large-capacity-bicycle-bag",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://hairstudiov.com/cdn/shop/files/spp_shopify20260313112633_08f15c767d22c0d1436aff00830ac38e_05f6018a-3841-4b1d-89c1-f47493cabeeb.png?v=1773735181",
+    "trend": {
+      "2026-03-24": 4,
+      "2026-03-25": 4,
+      "2026-03-26": 4,
+      "2026-04-04": 4,
+      "2026-04-05": 4,
+      "2026-04-06": 4
+    }
+  },
+  {
+    "handle": "solar-powered-ptz-security-camera",
+    "title": "📹 50% RABATT FÜR KURZE ZEIT! ☀️ SOLAR-PTZ-KAMERA – 360° Panorama, 4 MP, IP66 Wetterfest & Bewegungsalarm ✨",
+    "price": "99.99",
+    "published_at": "2026-03-31T14:18:34+08:00",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://toratoe.com/products/solar-powered-ptz-security-camera",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260331141741_bab226707cf922215c981b9d8bdcbcaa_41f2cc08-f3bc-4844-a39b-adb56f2dea36.png?v=1774937915",
+    "trend": {
+      "2026-04-01": 3,
+      "2026-04-02": 5,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "glitter-dumpling",
+    "title": "🎁Last Day 50% OFF🔥Glitter Dumpling Squishy Steamer Blind Box Surprise Squeeze Fun",
+    "price": "7.99",
+    "published_at": "2026-03-25",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://stardusst.com/products/glitter-dumpling",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://chic-lucky.com/cdn/shop/files/111.avif?v=1774507531",
+    "trend": {
+      "2026-03-26": 6,
+      "2026-03-27": 8,
+      "2026-03-28": 7,
+      "2026-04-01": 8,
+      "2026-04-02": 8,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "solar-lante11",
+    "title": "🥳2026 HOT SALE🥳💞50K+ SOLD!🌙🌿 50% OFF! Solar Pendant Lanterns – Intricate floral cut-outs cast beautiful shadows. Metal, IP55 waterproof. Auto on/off, zero electricity. Magical garden glow. 🏡✨",
+    "price": "19.99",
+    "published_at": "2026-03-25",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://londonnk.com/products/solar-lante11",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://londonnk.com/cdn/shop/files/spp_20250729184234_304018027e639eb45063aa189cee48dc_6aef21e3-8028-4eb9-913a-d3c8bac62d7f.jpg?v=1774419684",
+    "trend": {
+      "2026-03-25": 7,
+      "2026-03-26": 8,
+      "2026-03-27": 7,
+      "2026-03-28": 5,
+      "2026-04-01": 8,
+      "2026-04-02": 8,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "csq",
+    "title": "🔥🎁New arrival 50% OFF💥Rechargeable electric fluid pump for water and oil",
+    "price": "9.99",
+    "published_at": "2026-03-25",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://londonnk.com/products/csq",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-03-25": 8,
+      "2026-03-26": 8,
+      "2026-03-27": 8,
+      "2026-03-28": 6,
+      "2026-04-01": 8,
+      "2026-04-02": 8,
+      "2026-04-03": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "coup-ling-dt",
+    "title": "🔥New Style🔥Trailer Hitch Coupling Cap – Perfect Fit & Long-Lasting Protection! ✨",
+    "price": "15.99",
+    "published_at": "2026-03-23",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://rouvenor.com/products/coup-ling-dt",
+    "score": 20,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://londonnk.com/cdn/shop/files/spp_shopify20260322091904_0c6a6e37fdf47fad8931ebbb0cc92fbc_9afb7f24-71bb-475b-aa12-a0ffa30da749.png?v=1774180391",
+    "trend": {
+      "2026-03-23": 6,
+      "2026-03-24": 10,
+      "2026-03-25": 10,
+      "2026-03-26": 8,
+      "2026-04-04": 8,
+      "2026-04-05": 8,
+      "2026-04-06": 8
+    }
+  },
+  {
+    "handle": "strapless-support-shaping-bra",
+    "title": "🥳2026 HOT SALE🥳💞50K+ SOLD!💥💞👙 50% OFF! Strapless Push-Up Bra – 360° non-slip, wireless & breathable. Stays secure for hours. Perfect under off-shoulder tops & backless dresses. 🛡️✨",
+    "price": "12.99",
+    "published_at": "2026-03-30",
+    "sites_count": 3,
+    "flagship_count": 2,
+    "sample_url": "https://britneed.com/products/strapless-support-shaping-bra",
+    "score": 19,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260328221628_cec937bbef6767f0ac29a77fac3e3d5f_166f8d1d-44c3-4592-b8ea-b97115f4abc0.jpg?v=1774835333",
+    "trend": {
+      "2026-03-30": 3,
+      "2026-03-31": 3,
+      "2026-04-01": 3,
+      "2026-04-02": 3,
+      "2026-04-03": 3,
+      "2026-04-04": 3,
+      "2026-04-05": 3,
+      "2026-04-06": 3
+    }
+  },
+  {
+    "handle": "analatches-uz-1",
+    "title": "⌚ 49% OFF NOW! 🪖 Men‘s Military Watch – Analog-Digital Display, Waterproof & Shock-Resistant 🛡️",
+    "price": "26.99",
+    "published_at": "2026-03-30T00:35:03-08:00",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://loungon.com/products/analatches-uz-1",
+    "score": 19,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260114105801_0b2d089c27ec135cd7fd9d24404df14f_f7c515a1-b844-45e3-9174-22c8f7bfe703.png?v=1775026924",
+    "trend": {
+      "2026-03-30": 3,
+      "2026-03-31": 5,
+      "2026-04-01": 6,
+      "2026-04-02": 7,
+      "2026-04-03": 7,
+      "2026-04-04": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "mens-tactits",
+    "title": "Men's Tactical Cargo Pants with Multi-Pockets",
+    "price": "27.79",
+    "published_at": "2026-03-30",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://loungon.com/products/mens-tactits",
+    "score": 19,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260330170428_d38a8741665a63a7b2925526abb1b2c9_a9fb0750-4308-4e48-84e0-f2f8086c55ea.jpg?v=1774884011",
+    "trend": {
+      "2026-03-31": 5,
+      "2026-04-01": 5,
+      "2026-04-02": 7,
+      "2026-04-03": 7,
+      "2026-04-04": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "outdoor-camping",
+    "title": "📢📢50 % de réduction !! ⏰Grand sac de rangement pour le camping en plein air",
+    "price": "36.99",
+    "published_at": "2026-03-26",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://sowhatsale.com/products/outdoor-camping",
+    "score": 19,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://copensunny.com/cdn/shop/files/spp_shopify20260319111908_da9b13ce0e9b654e11fd71672d86d9a6_8fa6f671-63b3-4fdb-ab38-c0c5c83b0021.png?v=1774415833",
+    "trend": {
+      "2026-03-25": 5,
+      "2026-03-26": 6,
+      "2026-03-27": 6,
+      "2026-03-28": 5,
+      "2026-03-29": 4,
+      "2026-04-01": 7,
+      "2026-04-02": 7,
+      "2026-04-03": 7,
+      "2026-04-04": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "flag-face-paint-stick-for-world-cup",
+    "title": "3 Color Flag Face Paint Stick for World Cup",
+    "price": "13.99",
+    "published_at": "2026-03-26",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://goeasyup.com/products/flag-face-paint-stick-for-world-cup",
+    "score": 19,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260324164339_3ba34429dd6e6198fca8137877b083f9_94e0bd38-4cca-4959-84b0-84ffb91647ca.png?v=1774341899",
+    "trend": {
+      "2026-03-25": 3,
+      "2026-03-26": 4,
+      "2026-03-27": 5,
+      "2026-04-01": 7,
+      "2026-04-02": 7,
+      "2026-04-03": 7,
+      "2026-04-04": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "side-pocket-pants-1",
+    "title": "☀️ Promotion de printemps – 50 % DE RÉDUCTION !! 🌿🌸 Pantalon rayé bleu confortable avec poches latérales",
+    "price": "24.99",
+    "published_at": "2026-03-27",
+    "sites_count": 11,
+    "flagship_count": 0,
+    "sample_url": "https://sowhatsale.com/products/side-pocket-pants-1",
+    "score": 19,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-03-29": 5,
+      "2026-03-30": 4,
+      "2026-04-01": 11,
+      "2026-04-02": 11,
+      "2026-04-03": 11,
+      "2026-04-04": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "2-in7fto",
+    "title": "📱60% OFF NOW! 🔥【Plug and Play! Wireless Connection 🔥 2-in-1 Wireless Adapter - iPhone & Android Auto, turn your car into a smart cinema in seconds】",
+    "price": "19.99",
+    "published_at": "2026-03-30",
+    "sites_count": 3,
+    "flagship_count": 2,
+    "sample_url": "https://shimmer07.com/products/2-in7fto",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://shimmer07.com/cdn/shop/files/spp_20250704165754_c16f54c0bd540c5642bd481210a14aee_3d790905-5820-4934-b11a-ae571d5c1f4c.jpg?v=1768472730",
+    "trend": {
+      "2026-04-01": 1,
+      "2026-04-02": 3,
+      "2026-04-05": 3,
+      "2026-04-06": 3
+    }
+  },
+  {
+    "handle": "multi-p22-1",
+    "title": "🏆  Special Price £9.99 ! 🔥Buy 3 Get 2 Free🔥Multi-Purpose Rust Remover & Lubricant Spray",
+    "price": "9.99",
+    "published_at": "2026-03-26",
+    "sites_count": 3,
+    "flagship_count": 2,
+    "sample_url": "https://loungon.com/products/multi-p22-1",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260319181159_f2c9aba14225319f5a0fdbc2728de5b2_e5433fe2-2ba4-43c1-8453-e7741da43fb5.jpg?v=1774493389",
+    "trend": {
+      "2026-03-26": 3,
+      "2026-03-27": 3,
+      "2026-03-28": 3,
+      "2026-04-01": 3,
+      "2026-04-02": 3,
+      "2026-04-03": 3,
+      "2026-04-05": 3,
+      "2026-04-06": 3
+    }
+  },
+  {
+    "handle": "metalgnjhgj5",
+    "title": "🛠️BUY 2 GET 3 FREE!⚡Metal Casting Repair Glue – High-Strength Bond, Fast Curing & Heat Resistant 🔥",
+    "price": "11.90",
+    "published_at": "2026-03-26",
+    "sites_count": 3,
+    "flagship_count": 2,
+    "sample_url": "https://shimmer07.com/products/metalgnjhgj5",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://shimmer07.com/cdn/shop/files/spp_20250609154733_4c390309a98593483ca18c6637745d62_58cf7dc2-d291-45b2-b628-6e1e5c7421c6.png?v=1774525029",
+    "trend": {
+      "2026-03-27": 3,
+      "2026-04-02": 3,
+      "2026-04-05": 3,
+      "2026-04-06": 3
+    }
+  },
+  {
+    "handle": "rechargeable-electric-ear-cleaner-kit",
+    "title": "Rechargeable Electric Ear Cleaner Kit",
+    "price": "69.99",
+    "published_at": "2026-03-31T21:31:07-06:00",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://whatyam.com/products/rechargeable-electric-ear-cleaner-kit",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20260401093039_4ae2b3ab11ba3324dc0d914ae420a748_b872f144-e4a1-4d48-af14-77fc9e1c7b00.jpg?v=1775007076",
+    "trend": {
+      "2026-04-01": 5,
+      "2026-04-02": 7,
+      "2026-04-03": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "kit-per-la-rimozione-del-cerume-2-in-1-aggiornato-spray-d-acqua-ricaricabile-4-livelli-di-pressione-regolabili-e-serbatoio-raccogligemma-integrato-sistema-di-irrigazione-sicuro-per-una-pulizia-del-condotto-uditivo-senza-dolore",
+    "title": "Appareil de rinçage auriculaire électrique – Réglable en 5 niveaux pour un nettoyage efficace du conduit auditif à la maison",
+    "price": "49.99",
+    "published_at": "2026-03-31T10:57:31+08:00",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://copensunny.com/products/kit-per-la-rimozione-del-cerume-2-in-1-aggiornato-spray-d-acqua-ricaricabile-4-livelli-di-pressione-regolabili-e-serbatoio-raccogligemma-integrato-sistema-di-irrigazione-sicuro-per-una-pulizia-del-condotto-uditivo-senza-dolore",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://copensunny.com/cdn/shop/files/spp_shopify20260401101053_862ef78592f883dda1e109ce7a455059_430x_83c129dc-f123-4725-8838-88e39956663d.webp?v=1775141568",
+    "trend": {
+      "2026-04-01": 4,
+      "2026-04-02": 6,
+      "2026-04-03": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "pantalon-droite",
+    "title": "👖 56% RABATT! 🌿 Damenhose aus Baumwolle & Leinen mit Elastischem Bund – Bequem, Atmungsaktiv & Lässiger Look 🥰",
+    "price": "20.99",
+    "published_at": "2026-03-27",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://hairstudiov.com/products/pantalon-droite",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://biaotic.com/cdn/shop/files/78b74c83ece914e1057b425563bd30cc_b509f894-60fe-4c5b-90c5-65b2c5e4fcfc.jpg?v=1773626436",
+    "trend": {
+      "2026-03-25": 7,
+      "2026-03-26": 6,
+      "2026-03-27": 6,
+      "2026-04-01": 7,
+      "2026-04-02": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "moldeq-lj",
+    "title": "⏰ Now only 50% off!🌟Magic anti-mildew magic! 🌟Anti-mould Cleaning Foam Spray",
+    "price": "12.99",
+    "published_at": "2026-03-26",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://loungon.com/products/moldeq-lj",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://loungon.com/cdn/shop/files/spp_shopify20260211122820_b746f79bd088e911f1bc786203a81dbf_ffe1bb7c-ac78-40b5-ad7a-5eb7de236095.jpg?v=1774492428",
+    "trend": {
+      "2026-03-26": 7,
+      "2026-03-27": 7,
+      "2026-03-28": 5,
+      "2026-04-01": 7,
+      "2026-04-02": 7,
+      "2026-04-03": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "wns-boals",
+    "title": "👡 50% OFF NOW! 🎀 Women's Bowknot Peep-Toe Wedge Sandals – Chic Design, Comfortable Wedge & Easy to Slip On 🌸",
+    "price": "17.99",
+    "published_at": "2026-03-25",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://baybyy.com/products/wns-boals",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-03-25": 4,
+      "2026-03-27": 6,
+      "2026-03-28": 5,
+      "2026-04-01": 7,
+      "2026-04-02": 7,
+      "2026-04-03": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "breathable-underwear",
+    "title": "💞 Clearance Sale! 💨 -Buy 1 Get 1 Free💕Women’s High-Waisted Tummy Control Seamless Boyshorts🧺🌸",
+    "price": "6.99",
+    "published_at": "2026-03-24",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://britneed.com/products/breathable-underwear",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://stardusst.com/cdn/shop/files/1_2e7b9595-4e99-4b16-9372-fbf6257dcffe.jpg?v=1773997859",
+    "trend": {
+      "2026-03-23": 4,
+      "2026-03-24": 5,
+      "2026-03-25": 7,
+      "2026-03-26": 7,
+      "2026-03-27": 4,
+      "2026-04-01": 7,
+      "2026-04-02": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "spray3",
+    "title": "🎉All-in-One Powerful Stain Remover Clothes Dry-Clean Spray",
+    "price": "12.90",
+    "published_at": "2026-03-24",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://britneed.com/products/spray3",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/1_a783b373-f087-4134-b24b-869c8d6e9693.jpg?v=1774317864",
+    "trend": {
+      "2026-03-24": 5,
+      "2026-03-25": 5,
+      "2026-03-26": 7,
+      "2026-03-27": 6,
+      "2026-04-01": 7,
+      "2026-04-02": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "so1a",
+    "title": "🏃49% OFF! 🩳 Men's Quick-Dry Athletic Shorts – 4-Way Stretch & Moisture-Wicking for Gym, Golf & Daily Wear 💦",
+    "price": "18.99",
+    "published_at": "2026-03-24",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://bebuyby.com/products/so1a",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-03-25": 6,
+      "2026-03-27": 6,
+      "2026-04-01": 7,
+      "2026-04-02": 7,
+      "2026-04-05": 7,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "womens-casual-loose-fit-button-front-overalls",
+    "title": "👖 50% OFF NOW! 🌿 Women's Casual Button-Front Overalls – Adjustable Straps, Breathable Fabric & Relaxed Fit ✨",
+    "price": "44.99",
+    "published_at": "2026-03-31T16:30:09+08:00",
+    "sites_count": 11,
+    "flagship_count": 0,
+    "sample_url": "https://whatyam.com/products/womens-casual-loose-fit-button-front-overalls",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "off-shoulder-2-pieces-set",
+    "title": "💎 50% OFF THE OFF-SHOULDER PUFF SLEEVE SET! 💎 High-Waisted Pants, Romantic Flare & Stretch Fabric ✨",
+    "price": "39.99",
+    "published_at": "2026-03-25",
+    "sites_count": 11,
+    "flagship_count": 0,
+    "sample_url": "https://outdhaven.com/products/off-shoulder-2-pieces-set",
+    "score": 19,
+    "date": "2026-04-05",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-03-25": 6,
+      "2026-03-28": 6,
+      "2026-04-03": 11,
+      "2026-04-05": 11,
+      "2026-04-06": 11
+    }
+  },
+  {
+    "handle": "matt-lipstick",
+    "title": "💝10Pcs Matte Waterproof  Long Lasting Lip Gloss",
+    "price": "12.99",
+    "published_at": "2026-04-01T14:33:20+08:00",
+    "sites_count": 7,
+    "flagship_count": 1,
+    "sample_url": "https://britneed.com/products/matt-lipstick",
+    "score": 19,
+    "date": "2026-04-06",
+    "is_new": false,
+    "image_url": null,
+    "trend": {
+      "2026-04-05": 6,
+      "2026-04-06": 7
+    }
+  },
+  {
+    "handle": "lhfabgefty",
+    "title": "Thickened Soft Silicone Multi-Purpose Broom",
+    "price": "14.90",
+    "published_at": "2026-03-29T22:38:03-08:00",
+    "sites_count": 6,
+    "flagship_count": 1,
+    "sample_url": "https://britneed.com/products/lhfabgefty",
+    "score": 18,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://britneed.com/cdn/shop/files/spp_shopify20250905091137_f4b85b1a110d528d2e718315cfd8011f_b0ce8994-9d2a-466f-b639-9aa54041534d.png?v=1774922290",
+    "trend": {
+      "2026-03-31": 6,
+      "2026-04-01": 4,
+      "2026-04-02": 6,
+      "2026-04-04": 6
+    }
+  },
+  {
+    "handle": "sunglasses-1",
+    "title": "👓 50% OFF NOW! ⚡ Oversized Cat-Eye Sunglasses – Polarized UV400, Fit Over Glasses & Fashion-Forward Design for Women ✨",
+    "price": "15.99",
+    "published_at": "2026-03-30",
+    "sites_count": 6,
+    "flagship_count": 1,
+    "sample_url": "https://outdhaven.com/products/sunglasses-1",
+    "score": 18,
+    "date": "2026-04-04",
+    "is_new": false,
+    "image_url": "http://bebuyby.com/cdn/shop/files/1f29d1068180bbe8af8674a6c333b3716abc04af_5c3c7240-9538-4647-aa49-6eb98e125016.jpg?v=1774611030",
+    "trend": {
+      "2026-03-29": 3,
+      "2026-03-30": 6,
+      "2026-03-31": 5,
+      "2026-04-01": 6,
+      "2026-04-02": 6,
+      "2026-04-03": 6,
+      "2026-04-04": 6
+    }
+  }
+];
+
+// Category rules
+const CATS = [
+  { id: 'all', label: '全部', match: () => true },
+  { id: 'beauty', label: '💄 美容个护', match: t => /hair|cream|facial|beauty|liner|cleanser|ipl|ear|skin|nail|lash|cosmetic|makeup|lotion|serum/i.test(t) },
+  { id: 'clothing', label: '👗 服装鞋帽', match: t => /dress|pants|shoes|sandal|jacket|shirt|top|skirt|legging|sneaker|boot|socks|hoodi|sleeve|blazer|jeans|coat|swimsuit|bikini|bra|underwear/i.test(t) },
+  { id: 'home', label: '🏠 家居厨房', match: t => /cookware|baking|broom|pan|pot|bowl|mug|cup|storage|bag|bedding|pillow|curtain|lamp|shelf|rack|organizer|kitchen|cook|home/i.test(t) },
+  { id: 'auto', label: '🚗 汽车配件', match: t => /tire|tyre|motorcycle|car|headlight|disc lock|vehicle|auto|motor|wheel|wiper|seat cover/i.test(t) },
+  { id: 'electronics', label: '📱 电子数码', match: t => /camera|drone|solar|screen|wireless|touchscreen|fan|bluetooth|speaker|headphone|earphone|charger|battery|power station|solar|4g|lte|wifi|smart|monitor|display|electronic/i.test(t) },
+  { id: 'tools', label: '🔧 工具五金', match: t => /wrench|tool bag|wire puller|disc lock|tool|plier|drill|saw|screwdriver|hammer|level|laser|canvas bag|box cutter|tape/i.test(t) },
+];
+
+// Chinese translations (keyword-based)
+const CN_MAP = [
+  [/hair removal|haarentfernung/i, '脱毛仪'],
+  [/ipl/i, 'IPL 冰点脱毛仪'],
+  [/cookware|kochset/i, '炊具套装'],
+  [/baking (tray|pan)|carbon steel/i, '碳钢烤盘'],
+  [/broom/i, '硅胶扫把'],
+  [/motorcycle.*disc lock|disc lock/i, '摩托车报警碟刹锁'],
+  [/canvas tool bag|tool bag/i, '帆布工具袋'],
+  [/wire puller/i, '穿线器'],
+  [/wrench/i, '扳手'],
+  [/electricity saving box/i, '节电器'],
+  [/solar.*camera|camera.*solar/i, '太阳能摄像头'],
+  [/4g lte.*camera|camera.*4g/i, '4G LTE 太阳能监控摄像头'],
+  [/power station/i, '便携储能电源'],
+  [/drone/i, '水面无人机'],
+  [/ear cleaner/i, '电动洗耳器'],
+  [/wireless.*adapter|adapter.*wireless/i, '无线 CarPlay 适配器'],
+  [/jet fan|portable fan/i, '便携喷气风扇'],
+  [/military watch/i, '军事风格双显手表'],
+  [/tactical cargo pants/i, '战术多口袋工装裤'],
+  [/touchscreen display/i, '无线智能触控屏'],
+  [/headlight/i, '车灯修复套装'],
+  [/magnifying glass/i, '折叠放大镜'],
+  [/sandal/i, '露趾凉鞋'],
+  [/summer.*dress|babydoll dress|maxi dress/i, '夏季连衣裙'],
+  [/sneaker|platform shoe/i, '厚底运动鞋'],
+  [/striped.*pants|side pocket pants/i, '条纹侧口袋休闲裤'],
+  [/spray|degreaser/i, '多用途去污喷雾'],
+  [/gel liner/i, '防水眼线胶笔'],
+  [/hair removal cream/i, '温和脱毛膏'],
+  [/marble/i, '大理石纹地面漆'],
+  [/tile wax|tire wax/i, '轮胎光亮蜡'],
+  [/mug/i, '马克杯'],
+  [/oral irrigator|water flosser/i, '便携冲牙器'],
+  [/camping.*bag|storage bag/i, '户外露营收纳袋'],
+  [/PTZ camera/i, '太阳能 PTZ 摄像头'],
+  [/fake.*dress|二件套|blatt/i, '仿两件套连衣裙'],
+  [/lace.*dress|babydoll/i, '镂空蕾丝连衣裙'],
+  [/cloud slide|non-slip.*sole/i, '厚底防滑云朵拖鞋'],
+];
+
+function getChineseTitle(title) {
+  // Remove emojis and promo noise for matching
+  const clean = title.replace(/[^ -~À-ɏ]/g, '').trim();
+  for (const [re, cn] of CN_MAP) {
+    if (re.test(clean) || re.test(title)) return cn;
+  }
+  // Fallback: extract main noun
+  return extractNoun(clean);
+}
+
+function extractNoun(t) {
+  const cleaned = t.replace(/\d+%\s*OFF|SALE|Rabatt|FREE|LIMITED|LAST DAY|HOT|🔥|⚡|💎|🏆|💥|✨|⏳|\bBUY\b|\bGET\b/gi,'').trim();
+  const words = cleaned.split(/[\s,\-–|]+/).filter(w => w.length > 2).slice(0,3);
+  return words.join(' ') || t.slice(0,30);
+}
+
+function getCategory(title) {
+  for (const cat of CATS.slice(1)) {
+    if (cat.match(title)) return cat.id;
+  }
+  return 'other';
+}
+
+function getCatLabel(id) {
+  const c = CATS.find(x => x.id === id);
+  return c ? c.label : '📦 其他';
+}
+
+function scoreColor(s) {
+  if (s >= 18) return 'score-high';
+  if (s >= 12) return 'score-mid';
+  return 'score-low';
+}
+
+function rankBadge(i) {
+  if (i === 0) return '<span class="rank rank-1">🥇 #1</span>';
+  if (i === 1) return '<span class="rank rank-2">🥈 #2</span>';
+  if (i === 2) return '<span class="rank rank-3">🥉 #3</span>';
+  if (i < 10) return `<span class="rank">#${i+1}</span>`;
+  return '';
+}
+
+function stripEmoji(s) {
+  return s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]+/gu, '').replace(/\s+/g,' ').trim();
+}
+
+// Gradient palettes for placeholders
+const GRADIENTS = [
+  ['#e0e7ff','#c7d2fe'],['#fce7f3','#fbcfe8'],['#ecfdf5','#a7f3d0'],
+  ['#fef3c7','#fde68a'],['#eff6ff','#bfdbfe'],['#f5f3ff','#ddd6fe'],
+  ['#fff1f2','#fecdd3'],['#f0fdfa','#99f6e4'],
+];
+function cardGradient(i) {
+  const [a,b] = GRADIENTS[i % GRADIENTS.length];
+  return `background: linear-gradient(135deg, ${a} 0%, ${b} 100%);`;
+}
+
+// Category icons
+const CAT_ICONS = {
+  beauty:'💄',clothing:'👗',home:'🏠',auto:'🚗',electronics:'📱',tools:'🔧',all:'📦'
+};
+function catIcon(id) { return CAT_ICONS[id] || '📦'; }
+
+// SVG sparkline for trend data
+function sparkline(trend) {
+  if (!trend || Object.keys(trend).length < 2) return '';
+  const dates = Object.keys(trend).sort();
+  const vals = dates.map(d => trend[d]);
+  const max = Math.max(...vals, 1);
+  const min = Math.min(...vals, 0);
+  const range = max - min || 1;
+  const w = 80, h = 28, pad = 3;
+  const pts = vals.map((v, i) => {
+    const x = pad + (i / (vals.length - 1)) * (w - 2 * pad);
+    const y = h - pad - ((v - min) / range) * (h - 2 * pad);
+    return [x, y];
+  });
+  const polyline = pts.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const last = pts[pts.length - 1];
+  const color = vals[vals.length-1] >= vals[0] ? '#10b981' : '#ef4444';
+  const lastVal = vals[vals.length-1];
+  const diff = vals[vals.length-1] - vals[0];
+  const arrow = diff > 0 ? '\u2191' : diff < 0 ? '\u2193' : '';
+  return `<span class="trend-wrap" title="${dates.map((d,i)=>d.slice(5)+': '+vals[i]+'家').join('\\n')}">
+    <svg width="${w}" height="${h}" style="vertical-align:middle;">
+      <polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.5" fill="${color}"/>
+    </svg>
+    <span style="color:${color};font-weight:600;">${arrow}${lastVal}</span>
+  </span>`;
+}
+
+let activecat = 'all';
+let currentModal = null;
+
+function filtered() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  const sort = document.getElementById('sort').value;
+  let data = RAW_DATA.map((p,i)=>({...p,_idx:i,_cat:getCategory(p.title)}));
+
+  if (activecat !== 'all') {
+    const catDef = CATS.find(x=>x.id===activecat);
+    if (catDef) data = data.filter(p => catDef.match(p.title));
+  }
+  if (q) {
+    data = data.filter(p =>
+      p.title.toLowerCase().includes(q) ||
+      p.handle.toLowerCase().includes(q) ||
+      (p.sites||[]).some(s=>s.includes(q))
+    );
+  }
+  if (sort === 'score') data.sort((a,b) => b.score - a.score);
+  else if (sort === 'sites') data.sort((a,b) => b.sites_count - a.sites_count);
+  else if (sort === 'flagship') data.sort((a,b) => b.flagship_count - a.flagship_count);
+  else if (sort === 'price_asc') data.sort((a,b) => parseFloat(a.price) - parseFloat(b.price));
+  else if (sort === 'price_desc') data.sort((a,b) => parseFloat(b.price) - parseFloat(a.price));
+  else if (sort === 'new') data.sort((a,b) => (b.is_new?1:0) - (a.is_new?1:0) || b.score - a.score);
+  return data;
+}
+
+function render() {
+  const data = filtered();
+  document.getElementById('result-count').textContent = data.length;
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+  if (!data.length) { grid.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  grid.innerHTML = data.slice(0,100).map((p, vi) => {
+    const orig_i = p._idx;
+    const cn = getChineseTitle(p.title);
+    const clean = stripEmoji(p.title);
+    const hasFlag = (p.flagship_count || 0) > 0;
+    const priceNum = parseFloat(p.price);
+    const currency = p.price && p.sample_url && p.sample_url.includes('.com') ? '€' : '€';
+    const dateStr = (p.date || '').slice(5); // MM-DD
+    
+    const imgHtml = p.image_url
+      ? `<img class="card-img" src="${p.image_url}" alt="${clean.replace(/"/g,'&quot;')}" loading="lazy" onerror="this.outerHTML='<div class=\\'card-img-placeholder\\' style=\\'${cardGradient(orig_i).replace(/'/g,"\\'")}\\'><span>${catIcon(p._cat)}</span></div>'">`
+      : `<div class="card-img-placeholder" style="${cardGradient(orig_i)}"><span>${catIcon(p._cat)}</span></div>`;
+    const trendHtml = sparkline(p.trend);
+
+    return `<div class="card">
+      <div class="card-img-wrap">
+        ${rankBadge(vi)}
+        ${p.is_new ? '<span class="badge-new">NEW</span>' : ''}
+        ${imgHtml}
+      </div>
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-title" title="${clean.replace(/"/g,'&quot;')}">${clean || p.title}</div>
+          <span class="score-badge ${scoreColor(p.score)}">⭐ ${p.score}</span>
+        </div>
+        <div class="card-cn">🇨🇳 ${cn}</div>
+        <div class="card-meta">
+          <span class="meta-chip chip-price">💰 ${currency}${priceNum.toFixed(2)}</span>
+          <span class="meta-chip chip-sites">🏪 ${p.sites_count} 家</span>
+          ${hasFlag ? `<span class="meta-chip chip-flagship">⭐ ${p.flagship_count || 0} 旗舰</span>` : ''}
+          <span class="meta-chip chip-date">📅 ${dateStr}</span>
+          ${trendHtml}
+        </div>
+        <div class="card-actions">
+          <a class="btn-sample" href="${p.sample_url}" target="_blank" rel="noopener">🔗 样品链接</a>
+          <span class="btn-sites">🏪 ${p.sites_count}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function initCatTabs() {
+  const wrap = document.getElementById('cat-tabs');
+  // Count per category
+  const counts = {};
+  RAW_DATA.forEach(p => {
+    const cat = getCategory(p.title);
+    counts[cat] = (counts[cat]||0)+1;
+  });
+  
+  const tabData = [
+    ...CATS.map(c => ({...c, count: c.id==='all' ? RAW_DATA.length : (counts[c.id]||0)})),
+    {id:'other', label:'📦 其他', match:()=>true, count: counts['other']||0}
+  ].filter((c,i,arr) => c.id==='all' || c.count>0 || !arr.find(x=>x.id===c.id && x!==c));
+  
+  wrap.innerHTML = tabData.map(c =>
+    `<button class="cat-tab${activecat===c.id?' active':''}" data-id="${c.id}" onclick="setcat('${c.id}')">${c.label} <span style="opacity:.6">${c.count}</span></button>`
+  ).join('');
+}
+
+function setcat(id) {
+  activecat = id;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.id===id));
+  render();
+}
+
+function initStats() {
+  const total = RAW_DATA.length;
+  const withFlag = RAW_DATA.filter(p=>(p.flagship_count||0)>0).length;
+  const maxScore = Math.max(...RAW_DATA.map(p=>p.score));
+  const avgSites = (RAW_DATA.reduce((a,p)=>a+p.sites_count,0)/total).toFixed(1);
+  const newCount = RAW_DATA.filter(p=>p.is_new).length;
+
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-pill">📦 <strong>${total}</strong> 个商品</div>
+    <div class="stat-pill">⭐ 最高分 <strong>${maxScore}</strong></div>
+    <div class="stat-pill">🏪 平均铺货 <strong>${avgSites}</strong> 家</div>
+    <div class="stat-pill">🔥 旗舰命中 <strong>${withFlag}</strong> 个</div>
+    ${newCount ? `<div class="stat-pill">🆕 新品 <strong>${newCount}</strong> 个</div>` : ''}
+  `;
+  document.getElementById('updated-time').textContent = new Date().toLocaleDateString('zh-CN');
+
+  // Update date range in header
+  const dates = RAW_DATA.map(p=>p.date).filter(Boolean);
+  if (dates.length) {
+    const sorted = [...new Set(dates)].sort();
+    document.getElementById('header-meta').textContent =
+      '数据来源：热榜 · 最近 ' + sorted.length + ' 天汇总 · ' + sorted[0] + ' ~ ' + sorted[sorted.length-1];
+  }
+}
+
+// Init
+initStats();
+initCatTabs();
+render();
+</script>
+</body>
+</html>

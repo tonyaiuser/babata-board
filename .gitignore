@@ -1,0 +1,9 @@
+logs/
+data/
+scripts/
+templates/
+__pycache__/
+.DS_Store
+*.pyc
+com.spspy.daily.plist
+.claude/
