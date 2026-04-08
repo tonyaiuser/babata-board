@@ -114,8 +114,10 @@
   .rank-3 { background: linear-gradient(135deg, #b45309, #92400e); }
 
   /* NEW badge */
-  .badge-new { position: absolute; top: 10px; right: 10px; background: linear-gradient(135deg, #ef4444, #f97316); color: white; font-size: 0.68rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; z-index: 2; letter-spacing: 0.5px; animation: pulse-new 2s infinite; }
-  @keyframes pulse-new { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.08); } }
+  .badge-new { position: absolute; top: 10px; right: 10px; background: linear-gradient(135deg, #ef4444, #f97316); color: white; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; z-index: 2; letter-spacing: 0.5px; animation: pulse-new 2s infinite; box-shadow: 0 2px 8px rgba(239,68,68,.5); }
+  @keyframes pulse-new { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.12); } }
+  /* NEW card highlight */
+  .card-new { border: 2px solid #f97316; box-shadow: 0 0 12px rgba(249,115,22,.25); }
 
   /* Trend sparkline */
   .trend-wrap { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; color: var(--text3); }
@@ -2795,17 +2797,18 @@ function render() {
     const hasFlag = (p.flagship_count || 0) > 0;
     const priceNum = parseFloat(p.price);
     const currency = p.price && p.sample_url && p.sample_url.includes('.com') ? '€' : '€';
-    const dateStr = (p.date || '').slice(5); // MM-DD
+    const pubDate = (p.published_at || p.date || '').slice(0, 10);
+    const dateStr = pubDate.slice(5); // MM-DD
     
     const imgHtml = p.image_url
       ? `<img class="card-img" src="${p.image_url}" alt="${clean.replace(/"/g,'&quot;')}" loading="lazy" onerror="this.outerHTML='<div class=\\'card-img-placeholder\\' style=\\'${cardGradient(orig_i).replace(/'/g,"\\'")}\\'><span>${catIcon(p._cat)}</span></div>'">`
       : `<div class="card-img-placeholder" style="${cardGradient(orig_i)}"><span>${catIcon(p._cat)}</span></div>`;
     const trendHtml = sparkline(p.trend);
 
-    return `<div class="card">
+    return `<div class="card${p.is_new ? ' card-new' : ''}">
       <div class="card-img-wrap">
         ${rankBadge(vi)}
-        ${p.is_new ? '<span class="badge-new">NEW</span>' : ''}
+        ${p.is_new ? '<span class="badge-new">🆕 NEW</span>' : ''}
         ${imgHtml}
       </div>
       <div class="card-body">
@@ -2818,7 +2821,7 @@ function render() {
           <span class="meta-chip chip-price">💰 ${currency}${priceNum.toFixed(2)}</span>
           <span class="meta-chip chip-sites">🏪 ${p.sites_count} 家</span>
           ${hasFlag ? `<span class="meta-chip chip-flagship">⭐ ${p.flagship_count || 0} 旗舰</span>` : ''}
-          <span class="meta-chip chip-date">📅 ${dateStr}</span>
+          <span class="meta-chip chip-date">🛒 ${dateStr}</span>
           ${trendHtml}
         </div>
         <div class="card-actions">
