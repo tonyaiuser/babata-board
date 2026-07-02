@@ -10,7 +10,10 @@ old historical hot products.
 import csv
 import json
 import os
+import time
 from datetime import datetime, timezone
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -24,6 +27,13 @@ OUTPUT_PATHS = [
 ]
 IMAGES_PATH = os.path.join(DATA_DIR, "images.json")
 TOP_N = int(os.environ.get("SP_REPORT_SCAN_TOP_N", "150"))
+REQUEST_DELAY = float(os.environ.get("SP_TOP150_IMAGE_DELAY", "0.6"))
+REQUEST_TIMEOUT = int(os.environ.get("SP_TOP150_IMAGE_TIMEOUT", "8"))
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/122.0.0.0 Safari/537.36"
+)
 
 
 def as_int(value, default=0):
@@ -83,6 +93,62 @@ def load_images():
         return {}
     with open(IMAGES_PATH, encoding="utf-8") as f:
         return json.load(f)
+
+
+def save_images(images):
+    os.makedirs(os.path.dirname(IMAGES_PATH), exist_ok=True)
+    with open(IMAGES_PATH, "w", encoding="utf-8") as f:
+        json.dump(images, f, indent=2, ensure_ascii=False)
+
+
+def normalize_https(url):
+    if url and url.startswith("http://"):
+        return "https://" + url[len("http://") :]
+    return url or ""
+
+
+def fetch_shopify_image(sample_url, handle):
+    parsed = urlparse(sample_url or "")
+    if not parsed.scheme or not parsed.netloc or not handle:
+        return ""
+    api_url = f"{parsed.scheme}://{parsed.netloc}/products/{handle}.json"
+    req = Request(api_url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
+    try:
+        with urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+            data = json.loads(resp.read())
+        images = data.get("product", {}).get("images", [])
+        if images:
+            return normalize_https(images[0].get("src"))
+    except Exception:
+        return ""
+    return ""
+
+
+def ensure_candidate_images(products, images):
+    changed = False
+    today = datetime.now().strftime("%Y-%m-%d")
+    missing = [
+        product
+        for product in products
+        if product.get("handle") and not image_url_for(product["handle"], images)
+    ]
+    for index, product in enumerate(missing, 1):
+        handle = product["handle"]
+        img_url = fetch_shopify_image(product.get("sample_url"), handle)
+        images[handle] = {
+            "url": img_url or None,
+            "fetched_at": today,
+            "source": "top150_dashboard",
+            "error_type": None if img_url else "not_found",
+            "error": None if img_url else "image not found via Shopify product API",
+        }
+        product["image_url"] = img_url
+        changed = True
+        print(f"  image {index}/{len(missing)} {handle}: {'ok' if img_url else 'missing'}")
+        if REQUEST_DELAY:
+            time.sleep(REQUEST_DELAY)
+    if changed:
+        save_images(images)
 
 
 def image_url_for(handle, images):
@@ -169,6 +235,7 @@ def main():
     rank_map = load_rank_map()
     images = load_images()
     products = build_products(day, hotlist, rank_map, images)
+    ensure_candidate_images(products, images)
     generate_html(day, products)
 
 
