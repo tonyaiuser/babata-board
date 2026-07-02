@@ -17,7 +17,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OPENCLAW_DIR = os.path.expanduser("~/.openclaw/workspace")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 TEMPLATE_PATH = os.path.join(BASE_DIR, "templates", "dashboard_template.html")
-OUTPUT_PATH = os.path.join(BASE_DIR, "sp_top150_dashboard.html")
+OUTPUT_PATHS = [
+    os.path.join(BASE_DIR, "sp_top150_dashboard.html"),
+    # Existing DingTalk messages already point here, so keep it aligned too.
+    os.path.join(BASE_DIR, "sp_picker_dashboard.html"),
+]
 IMAGES_PATH = os.path.join(DATA_DIR, "images.json")
 TOP_N = int(os.environ.get("SP_REPORT_SCAN_TOP_N", "150"))
 
@@ -148,10 +152,11 @@ def generate_html(day, products):
     html = html.replace("数据来源：热榜 · 最近 3 天汇总", f"数据来源：{day} · Top{TOP_N}内≥3站重复候选")
     html = html.replace("Top 产品列表", f"Top{TOP_N} 候选列表")
 
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        f.write(html)
+    for output_path in OUTPUT_PATHS:
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(html)
 
-    print(f"Top{TOP_N} dashboard generated: {OUTPUT_PATH}")
+    print(f"Top{TOP_N} dashboard generated: {', '.join(OUTPUT_PATHS)}")
     print(f"  Date: {day}")
     print(f"  Products: {len(products)}")
     print(f"  With images: {sum(1 for p in products if p.get('image_url'))}")
