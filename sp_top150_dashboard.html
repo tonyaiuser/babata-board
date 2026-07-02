@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SP Top150 今日候选看板</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --text: #111827;
+    --text2: #6b7280;
+    --text3: #9ca3af;
+    --accent: #6366f1;
+    --accent-light: #eef2ff;
+    --green: #10b981;
+    --green-light: #ecfdf5;
+    --amber: #f59e0b;
+    --amber-light: #fffbeb;
+    --red: #ef4444;
+    --red-light: #fef2f2;
+    --blue: #3b82f6;
+    --blue-light: #eff6ff;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    --shadow-hover: 0 8px 25px rgba(0,0,0,.12);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%); color: white; padding: 20px 24px 24px; }
+  .header-inner { max-width: 1280px; margin: 0 auto; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .header h1 span.logo { font-size: 1.6rem; }
+  .header-meta { font-size: 0.8rem; opacity: .7; margin-top: 4px; }
+  .stats-row { display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
+  .stat-pill { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: 6px 14px; font-size: 0.82rem; display: flex; align-items: center; gap: 6px; }
+  .stat-pill strong { font-weight: 700; }
+
+  /* Controls */
+  .controls { background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .controls-inner { max-width: 1280px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cat-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+  .cat-tab { padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; background: var(--bg); color: var(--text2); transition: all .15s; }
+  .cat-tab:hover { border-color: var(--accent); color: var(--accent); }
+  .cat-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* Main */
+  .main { max-width: 1280px; margin: 0 auto; padding: 24px; }
+  .section-title { font-size: 1rem; font-weight: 600; color: var(--text2); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-title span.count { background: var(--accent-light); color: var(--accent); padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+
+  /* Grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+  /* Card */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: box-shadow .2s, transform .2s; box-shadow: var(--shadow); cursor: default; }
+  .card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+  .card-img { width: 100%; height: 180px; object-fit: cover; display: block; background: linear-gradient(135deg, #e0e7ff, #f0f4ff); }
+  .card-img-placeholder { width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; font-size: 3rem; background: linear-gradient(135deg, #e0e7ff 0%, #fce7f3 100%); }
+  .card-img.loaded { background: #f8f8f8; }
+  .card-body { padding: 14px; }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .card-title { font-size: 0.875rem; font-weight: 600; line-height: 1.4; color: var(--text); flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .score-badge { flex-shrink: 0; font-size: 0.8rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .score-high { background: var(--green-light); color: var(--green); }
+  .score-mid { background: var(--amber-light); color: var(--amber); }
+  .score-low { background: var(--blue-light); color: var(--blue); }
+  .card-cn { font-size: 0.78rem; color: var(--text2); margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .meta-chip { display: flex; align-items: center; gap: 4px; font-size: 0.76rem; padding: 3px 8px; border-radius: 6px; font-weight: 500; }
+  .chip-sites { background: #f1f5f9; color: #475569; }
+  .chip-flagship { background: #fef3c7; color: #b45309; }
+  .chip-price { background: #f0fdf4; color: #15803d; }
+  .chip-date { background: #faf5ff; color: #7c3aed; }
+  .chip-change { background: #eff6ff; color: #1d4ed8; }
+  .chip-growth { background: #ecfdf5; color: #047857; }
+  .chip-fb { background: #fef2f2; color: #dc2626; }
+  .chip-lp { background: #fff7ed; color: #c2410c; }
+  .flagship-list { font-size: 0.72rem; color: var(--text3); margin-bottom: 10px; }
+  .flagship-list strong { color: var(--amber); }
+  .card-actions { display: flex; gap: 8px; }
+  .btn-sample { flex: 1; text-align: center; padding: 7px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-decoration: none; background: var(--accent); color: white; transition: background .15s; border: none; cursor: pointer; }
+  .btn-sample:hover { background: #4f46e5; }
+  .flagship-tag { font-size: 0.7rem; padding: 2px 6px; background: #fef3c7; color: #b45309; border-radius: 4px; font-weight: 600; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+
+  /* Rank badge */
+  .rank { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.6); color: white; font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; z-index: 2; }
+  .card-img-wrap { position: relative; }
+  .rank-1 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .rank-2 { background: linear-gradient(135deg, #9ca3af, #6b7280); }
+  .rank-3 { background: linear-gradient(135deg, #b45309, #92400e); }
+
+  /* NEW badge */
+  .badge-new { position: absolute; top: 10px; right: 10px; background: linear-gradient(135deg, #ef4444, #f97316); color: white; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; z-index: 2; letter-spacing: 0.5px; animation: pulse-new 2s infinite; box-shadow: 0 2px 8px rgba(239,68,68,.5); }
+  @keyframes pulse-new { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.12); } }
+  /* NEW card highlight */
+  .card-new { border: 2px solid #f97316; box-shadow: 0 0 12px rgba(249,115,22,.25); }
+
+  /* Trend sparkline */
+  .trend-wrap { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; color: var(--text3); }
+  .trend-label { font-weight: 500; }
+
+  @media (max-width: 640px) {
+    .header { padding: 12px 14px 14px; }
+    .header h1 { font-size: 1.15rem; }
+    .header h1 span.logo { font-size: 1.2rem; }
+    .header-meta { font-size: 0.7rem; }
+    .stats-row { gap: 8px; margin-top: 10px; }
+    .stat-pill { padding: 4px 10px; font-size: 0.72rem; }
+    .controls-inner { padding: 8px 12px; gap: 8px; }
+    .cat-tabs { gap: 4px; }
+    .cat-tab { padding: 4px 10px; font-size: 0.72rem; }
+    .main { padding: 12px; }
+    .section-title { font-size: 0.88rem; margin-bottom: 10px; }
+    .grid { grid-template-columns: 1fr; gap: 10px; }
+    /* 移动端横排卡片 */
+    .card { display: flex; flex-direction: row; }
+    .card:hover { transform: none; }
+    .card-img-wrap { flex-shrink: 0; width: 110px; }
+    .card-img, .card-img-placeholder { height: 100%; min-height: 130px; border-radius: var(--radius) 0 0 var(--radius); }
+    .card-body { padding: 10px; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
+    .card-top { margin-bottom: 4px; }
+    .card-title { font-size: 0.78rem; -webkit-line-clamp: 2; line-height: 1.3; }
+    .score-badge { font-size: 0.7rem; padding: 2px 6px; }
+    .card-cn { font-size: 0.7rem; margin-bottom: 6px; }
+    .card-meta { gap: 4px; margin-bottom: 6px; }
+    .meta-chip { font-size: 0.68rem; padding: 2px 5px; }
+    .flagship-list { font-size: 0.66rem; margin-bottom: 6px; }
+    .card-actions { gap: 6px; }
+    .btn-sample { padding: 5px; font-size: 0.72rem; }
+    .rank { font-size: 0.62rem; padding: 2px 5px; top: 6px; left: 6px; }
+    .badge-new { font-size: 0.58rem; padding: 2px 5px; top: 6px; right: 6px; }
+    .trend-wrap svg { width: 50px; height: 20px; }
+    .trend-wrap { font-size: 0.62rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div>
+        <h1><span class="logo">🎯</span> SP Top150 今日候选看板</h1>
+        <div class="header-meta" id="header-meta">数据来源：2026-07-02 · Top150内≥3站重复候选</div>
+      </div>
+      <div style="font-size:0.8rem;opacity:.7;">v2.0 · <span id="updated-time"></span></div>
+    </div>
+    <div class="stats-row" id="stats-row">
+      <div class="stat-pill">⚡ 正在加载...</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="controls-inner">
+    <div class="cat-tabs" id="cat-tabs"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="section-title">
+    Top150 候选列表 <span class="count" id="result-count">0</span>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none;">
+    <div class="empty-icon">🔍</div>
+    <div>该分类下暂无商品</div>
+    <div style="font-size:.8rem;margin-top:6px;color:#9ca3af;">试试切换到其他分类</div>
+  </div>
+</div>
+
+
+<script>
+const RAW_DATA = [
+  {
+    "handle": "corner-clamp-adapter-for-quick-grip-bar-clamps",
+    "title": "Corner Clamp Adapter for Quick-Grip Bar Clamps",
+    "price": "18.00",
+    "published_at": "2026-06-29T11:10:24+08:00",
+    "sites_count": 7,
+    "flagship_count": 2,
+    "sample_url": "https://britneed.com/products/corner-clamp-adapter-for-quick-grip-bar-clamps",
+    "date": "2026-07-02",
+    "score": 36,
+    "top150_count": 4,
+    "image_url": "https://britneed.com/cdn/shop/files/spp_shopify20260701112738_3aa4d9bbc0f35b670ca987440c259115_5235c6cf-4a6c-47f2-86b7-c5cf1b04a81e.png?v=1782876502",
+    "age_hours": 83.6,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "over-the-door-shoe-rack-organizer",
+    "title": "👟50% OFF NOW! 🏆 Over-the-Door Shoe Rack Organizer – 24 pockets & tool-free install – Fits standard doors, holds up to 24 pairs – perfect for entryway or closet 🚪✨",
+    "price": "29.99",
+    "published_at": "2026-06-29T15:50:38+08:00",
+    "sites_count": 10,
+    "flagship_count": 1,
+    "sample_url": "https://londonnk.com/products/over-the-door-shoe-rack-organizer",
+    "date": "2026-07-02",
+    "score": 36,
+    "top150_count": 5,
+    "image_url": "https://londonnk.com/cdn/shop/files/spp_shopify20260601163848_ecf45cae84076c43c30345229242a3a4_a3cf5984-942f-42f5-9bca-cf40b9fd502d.png?v=1782810064",
+    "age_hours": 78.9,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "elegant-slim-fit-cowl-neck-dress",
+    "title": "👗 PROMO LIMITÉE 50% DE RÉDUCTION ! 💥 Robe Slim Fit Col Bénitier – Sans Manches, Poches Latérales, Polyvalente ✨",
+    "price": "29.99",
+    "published_at": "2026-06-29T03:15:02-04:00",
+    "sites_count": 5,
+    "flagship_count": 0,
+    "sample_url": "https://biaotic.com/products/elegant-slim-fit-cowl-neck-dress",
+    "date": "2026-07-02",
+    "score": 35,
+    "top150_count": 3,
+    "image_url": "https://biaotic.com/cdn/shop/files/spp_shopify20260622095333_24b58a1c7da192501b2beef21e9e1e7f_2cc4a138-d140-4112-a9da-dc260795a733.jpg?v=1782789118",
+    "age_hours": 79.5,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "multi-function-network-cable-crimping-tool",
+    "title": "Multi-Function Network Cable Crimping Tool",
+    "price": "29.99",
+    "published_at": "2026-06-29T11:09:53+08:00",
+    "sites_count": 6,
+    "flagship_count": 0,
+    "sample_url": "https://copenrain.com/products/multi-function-network-cable-crimping-tool",
+    "date": "2026-07-02",
+    "score": 26,
+    "top150_count": 3,
+    "image_url": "https://copenrain.com/cdn/shop/files/spp_shopify20260630162024_afb7abaf97d20f2909469864cb497d72_e77ee127-9a45-4e91-9928-fa8b001e7c90.jpg?v=1782807663",
+    "age_hours": 83.6,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "collapsible-faucet-hanging-sink-strainer-basket",
+    "title": "📢📢50% OFF !!!⏰Collapsible Faucet-Hanging Sink Strainer Basket",
+    "price": "9.99",
+    "published_at": "2026-06-29T15:11:04+08:00",
+    "sites_count": 5,
+    "flagship_count": 2,
+    "sample_url": "https://londonnk.com/products/collapsible-faucet-hanging-sink-strainer-basket",
+    "date": "2026-07-02",
+    "score": 24,
+    "top150_count": 3,
+    "image_url": "https://londonnk.com/cdn/shop/files/spp_shopify20260227111226_d5b182846639cc5351a7e5674d687767_5cb08fa9-e8cd-4254-860d-7ddb0b8455fb.jpg?v=1782803880",
+    "age_hours": 79.6,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "self-adhesive-flexible-floor-transition-strip",
+    "title": "📢📢50 % DE RÉDUCTION !! ⏰Bande de Transition de Sol Flexible Auto-Adhésive",
+    "price": "21.99",
+    "published_at": "2026-06-29T11:08:41+08:00",
+    "sites_count": 8,
+    "flagship_count": 0,
+    "sample_url": "https://biaotic.com/products/self-adhesive-flexible-floor-transition-strip",
+    "date": "2026-07-02",
+    "score": 23,
+    "top150_count": 4,
+    "image_url": "https://biaotic.com/cdn/shop/files/spp_shopify20260626233404_b377782b9011cfda5a0a80cb6ea372f2_0bae69d5-e6b1-41c9-96d8-1de554e5b511.png?v=1782791691",
+    "age_hours": 83.6,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "portablenzh",
+    "title": "📢📢50% OFF !! ⏰Portable Air Conditioner Hose Cover",
+    "price": "19.99",
+    "published_at": "2026-06-30T16:56:42+08:00",
+    "sites_count": 3,
+    "flagship_count": 3,
+    "sample_url": "https://loungon.com/products/portablenzh",
+    "date": "2026-07-02",
+    "score": 22,
+    "top150_count": 3,
+    "image_url": "https://loungon.com/cdn/shop/files/ChatGPT_Image_2026_6_28_14_37_37.webp?v=1782831590",
+    "age_hours": 53.8,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "rustic-wooden-garden-hanging-sign-wall-decor-plaque",
+    "title": "💖Limited-time 49% OFF🏡Rustic Wooden Garden Hanging Sign Wall Decor Plaque",
+    "price": "9.99",
+    "published_at": "2026-06-29T03:34:24-04:00",
+    "sites_count": 8,
+    "flagship_count": 1,
+    "sample_url": "https://londonnk.com/products/rustic-wooden-garden-hanging-sign-wall-decor-plaque",
+    "date": "2026-07-02",
+    "score": 21,
+    "top150_count": 4,
+    "image_url": "https://londonnk.com/cdn/shop/files/spp_shopify20260626142324_b04a5c6ffb57dd04a26055182f9ab025_6abec90e-eb9f-4d91-983c-48f4e16889c3.jpg?v=1782916292",
+    "age_hours": 79.2,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "tragbare-elektrische-lunchbox",
+    "title": "📢📢50% off! ⏰ Portable electric lunch box with self-heating 🔋🌡️",
+    "price": "34.99",
+    "published_at": "2026-06-29T16:34:19+08:00",
+    "sites_count": 6,
+    "flagship_count": 1,
+    "sample_url": "https://londonnk.com/products/tragbare-elektrische-lunchbox",
+    "date": "2026-07-02",
+    "score": 19,
+    "top150_count": 4,
+    "image_url": "",
+    "age_hours": 78.2,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "fairy-patchwork-diy-collection",
+    "title": "🔥LAST DAY 49% OFF🧵Fairy Patchwork DIY Collection",
+    "price": "14.99",
+    "published_at": "2026-06-29T11:37:54+08:00",
+    "sites_count": 6,
+    "flagship_count": 1,
+    "sample_url": "https://londonnk.com/products/fairy-patchwork-diy-collection",
+    "date": "2026-07-02",
+    "score": 19,
+    "top150_count": 3,
+    "image_url": "",
+    "age_hours": 83.1,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "foldable-silent-hand-truck",
+    "title": "Chariot à main pliable et silencieux",
+    "price": "89.99",
+    "published_at": "2026-06-30T03:20:45-04:00",
+    "sites_count": 8,
+    "flagship_count": 0,
+    "sample_url": "https://subsequentk.com/products/foldable-silent-hand-truck",
+    "date": "2026-07-02",
+    "score": 18,
+    "top150_count": 5,
+    "image_url": "",
+    "age_hours": 55.4,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "women-wide-leg-cropped-jeans-button-high-waist-denim-pants",
+    "title": "👖New Arrival💙Women Wide Leg Cropped Jeans Button High Waist Denim Pants",
+    "price": "45.99",
+    "published_at": "2026-06-30T14:31:46+08:00",
+    "sites_count": 8,
+    "flagship_count": 0,
+    "sample_url": "https://patiyu.com/products/women-wide-leg-cropped-jeans-button-high-waist-denim-pants",
+    "date": "2026-07-02",
+    "score": 18,
+    "top150_count": 3,
+    "image_url": "",
+    "age_hours": 56.2,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "universal-9-piece-car-seat-cover-set-for-5-seat-vehicles",
+    "title": "📢📢50% DE RÉDUCTION !!✈️Livraison gratuite ⏰ Ensemble de 9 Housses de Siège Auto Universelles pour Véhicules 5 Places",
+    "price": "45.99",
+    "published_at": "2026-06-29T11:27:27+08:00",
+    "sites_count": 4,
+    "flagship_count": 0,
+    "sample_url": "https://biaotic.com/products/universal-9-piece-car-seat-cover-set-for-5-seat-vehicles",
+    "date": "2026-07-02",
+    "score": 18,
+    "top150_count": 3,
+    "image_url": "",
+    "age_hours": 83.3,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "breezgo-1",
+    "title": "Car Seat Fan 🌬️ – 3-Speed Rechargeable Clip-On Fan with 3000mAh Battery 🔋 | USB-C Charging ⚡ for Cars 🚗, Golf Buggies 🛺 & Campervans 🏕️",
+    "price": "16.99",
+    "published_at": "2026-06-29T10:15:40+08:00",
+    "sites_count": 4,
+    "flagship_count": 0,
+    "sample_url": "https://londshop.com/products/breezgo-1",
+    "date": "2026-07-02",
+    "score": 16,
+    "top150_count": 3,
+    "image_url": "",
+    "age_hours": 84.5,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  },
+  {
+    "handle": "flea-tick-collar-for-dogsvip",
+    "title": "🐾 LIMITED-TIME 50% OFF! ✨ Flea & Tick Collar for Dogs & Cats – 8 Months Protection, Waterproof, Adjustable 🌿",
+    "price": "19.99",
+    "published_at": "2026-06-30T10:57:09+02:00",
+    "sites_count": 3,
+    "flagship_count": 0,
+    "sample_url": "https://slickweare.com/products/flea-tick-collar-for-dogsvip",
+    "date": "2026-07-02",
+    "score": 13,
+    "top150_count": 3,
+    "image_url": "",
+    "age_hours": 53.8,
+    "is_new": true,
+    "dashboard_priority": 3,
+    "change_label": "Top150候选",
+    "fb_hit_count": 0,
+    "delta_1d": 0,
+    "trend": null
+  }
+];
+
+// Category rules
+const CATS = [
+  { id: 'all', label: '全部', match: () => true },
+  { id: 'beauty', label: '💄 美容个护', match: t => /hair|cream|facial|beauty|liner|cleanser|ipl|ear|skin|nail|lash|cosmetic|makeup|lotion|serum/i.test(t) },
+  { id: 'clothing', label: '👗 服装鞋帽', match: t => /dress|pants|shoes|sandal|jacket|shirt|top|skirt|legging|sneaker|boot|socks|hoodi|sleeve|blazer|jeans|coat|swimsuit|bikini|bra|underwear/i.test(t) },
+  { id: 'home', label: '🏠 家居厨房', match: t => /cookware|baking|broom|pan|pot|bowl|mug|cup|storage|bag|bedding|pillow|curtain|lamp|shelf|rack|organizer|kitchen|cook|home/i.test(t) },
+  { id: 'auto', label: '🚗 汽车配件', match: t => /tire|tyre|motorcycle|car|headlight|disc lock|vehicle|auto|motor|wheel|wiper|seat cover/i.test(t) },
+  { id: 'electronics', label: '📱 电子数码', match: t => /camera|drone|solar|screen|wireless|touchscreen|fan|bluetooth|speaker|headphone|earphone|charger|battery|power station|solar|4g|lte|wifi|smart|monitor|display|electronic/i.test(t) },
+  { id: 'tools', label: '🔧 工具五金', match: t => /wrench|tool bag|wire puller|disc lock|tool|plier|drill|saw|screwdriver|hammer|level|laser|canvas bag|box cutter|tape/i.test(t) },
+];
+
+// Chinese translations (keyword-based)
+const CN_MAP = [
+  [/hair removal|haarentfernung/i, '脱毛仪'],
+  [/ipl/i, 'IPL 冰点脱毛仪'],
+  [/cookware|kochset/i, '炊具套装'],
+  [/baking (tray|pan)|carbon steel/i, '碳钢烤盘'],
+  [/broom/i, '硅胶扫把'],
+  [/motorcycle.*disc lock|disc lock/i, '摩托车报警碟刹锁'],
+  [/canvas tool bag|tool bag/i, '帆布工具袋'],
+  [/wire puller/i, '穿线器'],
+  [/wrench/i, '扳手'],
+  [/electricity saving box/i, '节电器'],
+  [/solar.*camera|camera.*solar/i, '太阳能摄像头'],
+  [/4g lte.*camera|camera.*4g/i, '4G LTE 太阳能监控摄像头'],
+  [/power station/i, '便携储能电源'],
+  [/drone/i, '水面无人机'],
+  [/ear cleaner/i, '电动洗耳器'],
+  [/wireless.*adapter|adapter.*wireless/i, '无线 CarPlay 适配器'],
+  [/jet fan|portable fan/i, '便携喷气风扇'],
+  [/military watch/i, '军事风格双显手表'],
+  [/tactical cargo pants/i, '战术多口袋工装裤'],
+  [/touchscreen display/i, '无线智能触控屏'],
+  [/headlight/i, '车灯修复套装'],
+  [/magnifying glass/i, '折叠放大镜'],
+  [/sandal/i, '露趾凉鞋'],
+  [/summer.*dress|babydoll dress|maxi dress/i, '夏季连衣裙'],
+  [/sneaker|platform shoe/i, '厚底运动鞋'],
+  [/striped.*pants|side pocket pants/i, '条纹侧口袋休闲裤'],
+  [/spray|degreaser/i, '多用途去污喷雾'],
+  [/gel liner/i, '防水眼线胶笔'],
+  [/hair removal cream/i, '温和脱毛膏'],
+  [/marble/i, '大理石纹地面漆'],
+  [/tile wax|tire wax/i, '轮胎光亮蜡'],
+  [/mug/i, '马克杯'],
+  [/oral irrigator|water flosser/i, '便携冲牙器'],
+  [/camping.*bag|storage bag/i, '户外露营收纳袋'],
+  [/PTZ camera/i, '太阳能 PTZ 摄像头'],
+  [/fake.*dress|二件套|blatt/i, '仿两件套连衣裙'],
+  [/lace.*dress|babydoll/i, '镂空蕾丝连衣裙'],
+  [/cloud slide|non-slip.*sole/i, '厚底防滑云朵拖鞋'],
+];
+
+function getChineseTitle(title) {
+  // Remove emojis and promo noise for matching
+  const clean = title.replace(/[^ -~À-ɏ]/g, '').trim();
+  for (const [re, cn] of CN_MAP) {
+    if (re.test(clean) || re.test(title)) return cn;
+  }
+  // Fallback: extract main noun
+  return extractNoun(clean);
+}
+
+function extractNoun(t) {
+  const cleaned = t.replace(/\d+%\s*OFF|SALE|Rabatt|FREE|LIMITED|LAST DAY|HOT|🔥|⚡|💎|🏆|💥|✨|⏳|\bBUY\b|\bGET\b/gi,'').trim();
+  const words = cleaned.split(/[\s,\-–|]+/).filter(w => w.length > 2).slice(0,3);
+  return words.join(' ') || t.slice(0,30);
+}
+
+function getCategory(title) {
+  for (const cat of CATS.slice(1)) {
+    if (cat.match(title)) return cat.id;
+  }
+  return 'other';
+}
+
+function getCatLabel(id) {
+  const c = CATS.find(x => x.id === id);
+  return c ? c.label : '📦 其他';
+}
+
+function scoreColor(s) {
+  if (s >= 35) return 'score-high';
+  if (s >= 22) return 'score-mid';
+  return 'score-low';
+}
+
+// ISO 货币代码 → 符号（未收录的直接显示代码）
+const CURRENCY_SYMBOLS = {
+  USD: '$', GBP: '£', EUR: '€', CAD: 'CA$', AUD: 'A$', NZD: 'NZ$',
+  JPY: '¥', CNY: '¥', CHF: 'CHF ', SEK: 'kr ', NOK: 'kr ', DKK: 'kr ',
+  PLN: 'zł ', MXN: 'MX$', BRL: 'R$', INR: '₹', AED: 'AED ', SAR: 'SAR ',
+};
+function currencySymbol(code) {
+  if (!code) return '';
+  return CURRENCY_SYMBOLS[code] || (code + ' ');
+}
+
+function rankBadge(i) {
+  if (i === 0) return '<span class="rank rank-1">🥇 #1</span>';
+  if (i === 1) return '<span class="rank rank-2">🥈 #2</span>';
+  if (i === 2) return '<span class="rank rank-3">🥉 #3</span>';
+  if (i < 10) return `<span class="rank">#${i+1}</span>`;
+  return '';
+}
+
+function stripEmoji(s) {
+  return s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]+/gu, '').replace(/\s+/g,' ').trim();
+}
+
+// Gradient palettes for placeholders
+const GRADIENTS = [
+  ['#e0e7ff','#c7d2fe'],['#fce7f3','#fbcfe8'],['#ecfdf5','#a7f3d0'],
+  ['#fef3c7','#fde68a'],['#eff6ff','#bfdbfe'],['#f5f3ff','#ddd6fe'],
+  ['#fff1f2','#fecdd3'],['#f0fdfa','#99f6e4'],
+];
+function cardGradient(i) {
+  const [a,b] = GRADIENTS[i % GRADIENTS.length];
+  return `background: linear-gradient(135deg, ${a} 0%, ${b} 100%);`;
+}
+
+// Category icons
+const CAT_ICONS = {
+  beauty:'💄',clothing:'👗',home:'🏠',auto:'🚗',electronics:'📱',tools:'🔧',all:'📦'
+};
+function catIcon(id) { return CAT_ICONS[id] || '📦'; }
+
+// SVG sparkline for trend data
+function sparkline(trend) {
+  if (!trend || Object.keys(trend).length < 2) return '';
+  const dates = Object.keys(trend).sort();
+  const vals = dates.map(d => trend[d]);
+  const max = Math.max(...vals, 1);
+  const min = Math.min(...vals, 0);
+  const range = max - min || 1;
+  const w = 80, h = 28, pad = 3;
+  const pts = vals.map((v, i) => {
+    const x = pad + (i / (vals.length - 1)) * (w - 2 * pad);
+    const y = h - pad - ((v - min) / range) * (h - 2 * pad);
+    return [x, y];
+  });
+  const polyline = pts.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const last = pts[pts.length - 1];
+  const color = vals[vals.length-1] >= vals[0] ? '#10b981' : '#ef4444';
+  const lastVal = vals[vals.length-1];
+  const diff = vals[vals.length-1] - vals[0];
+  const arrow = diff > 0 ? '\u2191' : diff < 0 ? '\u2193' : '';
+  return `<span class="trend-wrap" title="${dates.map((d,i)=>d.slice(5)+': '+vals[i]+'家').join('\\n')}">
+    <svg width="${w}" height="${h}" style="vertical-align:middle;">
+      <polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.5" fill="${color}"/>
+    </svg>
+    <span style="color:${color};font-weight:600;">${arrow}${lastVal}</span>
+  </span>`;
+}
+
+let activecat = 'all';
+
+function filtered() {
+  let data = RAW_DATA.map((p,i)=>({...p,_idx:i,_cat:getCategory(p.title)}));
+
+  if (activecat !== 'all') {
+    const catDef = CATS.find(x=>x.id===activecat);
+    if (catDef) data = data.filter(p => catDef.match(p.title));
+  }
+  data.sort((a,b) => (b.dashboard_priority || 0) - (a.dashboard_priority || 0) || (b.is_new?1:0) - (a.is_new?1:0) || b.score - a.score);
+  return data;
+}
+
+function render() {
+  const data = filtered();
+  document.getElementById('result-count').textContent = data.length;
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+  if (!data.length) { grid.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  grid.innerHTML = data.slice(0,100).map((p, vi) => {
+    const orig_i = p._idx;
+    const cn = getChineseTitle(p.title);
+    const clean = stripEmoji(p.title);
+    const hasFlag = (p.flagship_count || 0) > 0;
+    const priceNum = parseFloat(p.price);
+    const hasPrice = Number.isFinite(priceNum);
+    const currency = currencySymbol(p.currency);
+    const pubDate = (p.published_at || p.date || '').slice(0, 10);
+    const dateStr = pubDate.slice(5); // MM-DD
+    const delta = Math.max(Number(p.delta_1d || 0), Number(p.spread_delta || 0));
+    const fbCount = Number(p.fb_hit_count || 0);
+    const changeLabel = p.change_label || '';
+
+    const imgHtml = p.image_url
+      ? `<img class="card-img" src="${p.image_url}" alt="${clean.replace(/"/g,'&quot;')}" loading="lazy" onerror="this.outerHTML='<div class=\\'card-img-placeholder\\' style=\\'${cardGradient(orig_i).replace(/'/g,"\\'")}\\'><span>${catIcon(p._cat)}</span></div>'">`
+      : `<div class="card-img-placeholder" style="${cardGradient(orig_i)}"><span>${catIcon(p._cat)}</span></div>`;
+    const trendHtml = sparkline(p.trend);
+
+    return `<div class="card${p.is_new ? ' card-new' : ''}">
+      <div class="card-img-wrap">
+        ${rankBadge(vi)}
+        ${p.is_new ? '<span class="badge-new">🆕 NEW</span>' : ''}
+        ${imgHtml}
+      </div>
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-title" title="${clean.replace(/"/g,'&quot;')}">${clean || p.title}</div>
+          <span class="score-badge ${scoreColor(p.score)}">⭐ ${p.score}</span>
+        </div>
+        <div class="card-cn">🇨🇳 ${cn}</div>
+        <div class="card-meta">
+          ${hasPrice ? `<span class="meta-chip chip-price">💰 ${currency}${priceNum.toFixed(2)}</span>` : ''}
+          <span class="meta-chip chip-sites">🏪 ${p.sites_count} 家</span>
+          ${hasFlag ? `<span class="meta-chip chip-flagship">⭐ ${p.flagship_count || 0} 旗舰</span>` : ''}
+          ${changeLabel ? `<span class="meta-chip chip-change">${changeLabel}</span>` : ''}
+          ${delta > 0 ? `<span class="meta-chip chip-growth">+${delta}站</span>` : ''}
+          ${fbCount > 0 ? `<span class="meta-chip chip-fb">FB ${fbCount}</span>` : ''}
+          ${p.is_lp ? `<span class="meta-chip chip-lp">LP</span>` : ''}
+          <span class="meta-chip chip-date">🛒 ${dateStr}</span>
+          ${trendHtml}
+        </div>
+        <div class="card-actions">
+          <a class="btn-sample" href="${p.sample_url}" target="_blank" rel="noopener">🔗 样品链接</a>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function initCatTabs() {
+  const wrap = document.getElementById('cat-tabs');
+  // Count per category
+  const counts = {};
+  RAW_DATA.forEach(p => {
+    const cat = getCategory(p.title);
+    counts[cat] = (counts[cat]||0)+1;
+  });
+  
+  const tabData = [
+    ...CATS.map(c => ({...c, count: c.id==='all' ? RAW_DATA.length : (counts[c.id]||0)})),
+    {id:'other', label:'📦 其他', match:()=>true, count: counts['other']||0}
+  ].filter((c,i,arr) => c.id==='all' || c.count>0 || !arr.find(x=>x.id===c.id && x!==c));
+  
+  wrap.innerHTML = tabData.map(c =>
+    `<button class="cat-tab${activecat===c.id?' active':''}" data-id="${c.id}" onclick="setcat('${c.id}')">${c.label} <span style="opacity:.6">${c.count}</span></button>`
+  ).join('');
+}
+
+function setcat(id) {
+  activecat = id;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.id===id));
+  render();
+}
+
+function initStats() {
+  const total = RAW_DATA.length;
+  const withFlag = RAW_DATA.filter(p=>(p.flagship_count||0)>0).length;
+  const maxScore = Math.max(...RAW_DATA.map(p=>p.score));
+  const avgSites = (RAW_DATA.reduce((a,p)=>a+p.sites_count,0)/total).toFixed(1);
+  const newCount = RAW_DATA.filter(p=>p.is_new).length;
+  const changeCount = RAW_DATA.filter(p=>(p.dashboard_priority||0)>0).length;
+
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-pill">📦 <strong>${total}</strong> 个商品</div>
+    <div class="stat-pill">⭐ 最高分 <strong>${maxScore}</strong></div>
+    <div class="stat-pill">🏪 平均铺货 <strong>${avgSites}</strong> 家</div>
+    <div class="stat-pill">🔥 旗舰命中 <strong>${withFlag}</strong> 个</div>
+    ${changeCount ? `<div class="stat-pill">📈 有变化 <strong>${changeCount}</strong> 个</div>` : ''}
+    ${newCount ? `<div class="stat-pill">🆕 新品 <strong>${newCount}</strong> 个</div>` : ''}
+  `;
+  document.getElementById('updated-time').textContent = new Date().toLocaleDateString('zh-CN');
+
+  // Update date range in header
+  const dates = RAW_DATA.map(p=>p.date).filter(Boolean);
+  if (dates.length) {
+    const sorted = [...new Set(dates)].sort();
+    document.getElementById('header-meta').textContent =
+      '数据来源：热榜 · 最近 ' + sorted.length + ' 天汇总 · ' + sorted[0] + ' ~ ' + sorted[sorted.length-1];
+  }
+}
+
+// Init
+initStats();
+initCatTabs();
+render();
+</script>
+</body>
+</html>
