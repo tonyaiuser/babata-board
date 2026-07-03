@@ -6,4 +6,5 @@ __pycache__/
 .DS_Store
 *.pyc
 com.spspy.daily.plist
+com.spspy.similarweb.plist
 .claude/
