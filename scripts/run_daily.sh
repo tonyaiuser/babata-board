@@ -86,19 +86,32 @@ fi
 # Step 4: 推送到 GitHub
 echo ""
 echo "--- Step 4: 推送到 GitHub ---"
-if ! git config --get user.name >/dev/null; then
-    git config user.name "tonyaiuser"
-fi
-if ! git config --get user.email >/dev/null; then
-    git config user.email "tonyaiuser@tonyaiuserdeMac-mini.local"
-fi
-git add -A sp_picker_dashboard.html sp_top150_dashboard.html reports/dingtalk
-if git diff --cached --quiet; then
-    echo "No changes to push"
+PUBLISH_DIR="${SP_DASHBOARD_PUBLISH_DIR:-/private/tmp/babata-board-pages-main}"
+
+if [ -d "$PUBLISH_DIR" ] && git -C "$PUBLISH_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    mkdir -p "$PUBLISH_DIR/reports/dingtalk"
+    git -C "$PUBLISH_DIR" pull --ff-only origin main
+    cp sp_picker_dashboard.html sp_top150_dashboard.html "$PUBLISH_DIR/"
+    if [ -d reports/dingtalk ]; then
+        cp -R reports/dingtalk/. "$PUBLISH_DIR/reports/dingtalk/"
+    fi
+    git -C "$PUBLISH_DIR" add -A sp_picker_dashboard.html sp_top150_dashboard.html reports/dingtalk
+    if git -C "$PUBLISH_DIR" diff --cached --quiet; then
+        echo "No changes to push"
+    else
+        if ! git -C "$PUBLISH_DIR" config --get user.name >/dev/null; then
+            git -C "$PUBLISH_DIR" config user.name "tonyaiuser"
+        fi
+        if ! git -C "$PUBLISH_DIR" config --get user.email >/dev/null; then
+            git -C "$PUBLISH_DIR" config user.email "tonyaiuser@tonyaiuserdeMac-mini.local"
+        fi
+        git -C "$PUBLISH_DIR" commit -m "daily update $(date '+%Y-%m-%d')"
+        git -C "$PUBLISH_DIR" push origin main
+        echo "Pushed to GitHub from $PUBLISH_DIR"
+    fi
 else
-    git commit -m "daily update $(date '+%Y-%m-%d')"
-    git push origin main
-    echo "Pushed to GitHub"
+    echo "WARNING: publish worktree not found: $PUBLISH_DIR"
+    echo "Dashboard generated locally but was not pushed."
 fi
 
 echo ""

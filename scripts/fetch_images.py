@@ -26,6 +26,9 @@ REQUEST_DELAY = 1.5
 REQUEST_TIMEOUT = 10
 # 单个商品最多尝试的站点数
 MAX_URLS_PER_HANDLE = 4
+# 每日任务只补最近几天的图片，避免历史商品反复拖慢自动化。
+LOOKBACK_DAYS = int(os.environ.get("SP_FETCH_IMAGE_LOOKBACK_DAYS", "7"))
+MAX_PRODUCTS = int(os.environ.get("SP_FETCH_IMAGE_MAX_PRODUCTS", "180"))
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -143,9 +146,19 @@ def get_products_to_fetch():
     if not files:
         return []
 
-    # 合并所有文件，按 handle 去重
+    if LOOKBACK_DAYS > 0:
+        cutoff = (datetime.now() - timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+        recent_files = []
+        for fp in files:
+            name = os.path.basename(fp)
+            date_str = name.replace("sp_hotlist_", "").replace(".json", "")
+            if date_str >= cutoff:
+                recent_files.append(fp)
+        files = recent_files or files[-1:]
+
+    # 合并近期文件，按 handle 去重；新数据优先。
     seen = {}
-    for fp in files:
+    for fp in reversed(files):
         with open(fp, "r", encoding="utf-8") as f:
             products = json.load(f)
         for p in products:
@@ -153,7 +166,7 @@ def get_products_to_fetch():
             if handle not in seen:
                 seen[handle] = p
 
-    return list(seen.values())
+    return list(seen.values())[:MAX_PRODUCTS]
 
 
 def main():

@@ -41,12 +41,24 @@ def convert_file(src_path, date_str):
     if isinstance(raw, list):
         return raw[:100]
 
-    # openclaw 格式: 优先用 scored_results，否则用 results
-    items = raw.get("scored_results", raw.get("results", []))
+    # openclaw 格式: 看板主口径必须用当天 results，避免历史 scored_results 老品回流。
+    items = raw.get("results") or raw.get("scored_results", [])
     if not items:
         return None
 
-    # 按 score 降序取 Top 50
+    scored_by_handle = {
+        item.get("handle"): item
+        for item in raw.get("scored_results", [])
+        if item.get("handle")
+    }
+
+    for item in items:
+        handle = item.get("handle")
+        score_row = scored_by_handle.get(handle, {})
+        if score_row and not item.get("score"):
+            item["score"] = score_row.get("score", 0)
+
+    # 按 score 降序取 Top 100；score 只用于排序，不改变当天 results 的站点口径。
     items.sort(key=lambda x: x.get("score", 0), reverse=True)
 
     output = []

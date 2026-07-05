@@ -10,6 +10,7 @@ old historical hot products.
 import csv
 import json
 import os
+import re
 import time
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -120,27 +121,75 @@ def fetch_shopify_image(sample_url, handle):
         if images:
             return normalize_https(images[0].get("src"))
     except Exception:
+        pass
+
+    req = Request(sample_url, headers={"User-Agent": USER_AGENT, "Accept": "text/html"})
+    try:
+        with urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+            html = resp.read().decode("utf-8", "ignore")
+        for pattern in (
+            r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']',
+        ):
+            match = re.search(pattern, html, re.I)
+            if match:
+                return normalize_https(match.group(1))
+    except Exception:
         return ""
+    return ""
+
+
+def candidate_product_urls(product):
+    handle = product.get("handle", "")
+    urls = []
+    sample_url = product.get("sample_url")
+    if sample_url:
+        urls.append(sample_url)
+    for site in product.get("sites", []):
+        url = f"https://{site}/products/{handle}"
+        if url not in urls:
+            urls.append(url)
+    return urls
+
+
+def fetch_product_image(product):
+    handle = product.get("handle", "")
+    for url in candidate_product_urls(product):
+        image_url = fetch_shopify_image(url, handle)
+        if image_url:
+            return image_url
     return ""
 
 
 def ensure_candidate_images(products, images):
     changed = False
     today = datetime.now().strftime("%Y-%m-%d")
-    missing = [
-        product
-        for product in products
-        if product.get("handle") and not image_url_for(product["handle"], images)
-    ]
+    missing = []
+    for product in products:
+        handle = product.get("handle")
+        if not handle or image_url_for(handle, images):
+            continue
+        if product.get("image_url"):
+            images[handle] = {
+                "url": normalize_https(product.get("image_url")),
+                "fetched_at": today,
+                "source": "hotlist_products_json",
+                "error_type": None,
+                "error": None,
+            }
+            changed = True
+            continue
+        missing.append(product)
+
     for index, product in enumerate(missing, 1):
         handle = product["handle"]
-        img_url = fetch_shopify_image(product.get("sample_url"), handle)
+        img_url = fetch_product_image(product)
         images[handle] = {
             "url": img_url or None,
             "fetched_at": today,
             "source": "top150_dashboard",
             "error_type": None if img_url else "not_found",
-            "error": None if img_url else "image not found via Shopify product API",
+            "error": None if img_url else "image not found via Shopify product API or product page",
         }
         product["image_url"] = img_url
         changed = True
@@ -157,6 +206,56 @@ def image_url_for(handle, images):
     if url.startswith("http://"):
         url = "https://" + url[len("http://") :]
     return url
+
+
+def fetch_site_currency(domain):
+    """货币是站点级别的，查询一次 Shopify cart.js 即可（与 backfill_currency.py 同口径）"""
+    req = Request(
+        f"https://{domain}/cart.js",
+        headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+    )
+    try:
+        with urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+            data = json.loads(resp.read())
+        code = str(data.get("currency") or "").strip().upper()
+        if len(code) == 3:
+            return code
+    except Exception:
+        pass
+    return ""
+
+
+def product_domain(product):
+    domain = urlparse(product.get("sample_url") or "").netloc
+    if domain:
+        return domain
+    sites = product.get("sites") or []
+    return sites[0] if sites else ""
+
+
+def ensure_candidate_currencies(products, images):
+    """为候选注入货币代码：优先读缓存，缺失时按域名查 cart.js 并回写缓存"""
+    changed = False
+    domain_cache = {}
+    for product in products:
+        handle = product.get("handle")
+        if not handle:
+            continue
+        currency = (images.get(handle) or {}).get("currency")
+        if not currency:
+            domain = product_domain(product)
+            if domain:
+                if domain not in domain_cache:
+                    domain_cache[domain] = fetch_site_currency(domain)
+                    if REQUEST_DELAY:
+                        time.sleep(REQUEST_DELAY)
+                currency = domain_cache[domain]
+            if currency:
+                images.setdefault(handle, {})["currency"] = currency
+                changed = True
+        product["currency"] = currency or None
+    if changed:
+        save_images(images)
 
 
 def build_products(day, hotlist, rank_map, images):
@@ -183,7 +282,7 @@ def build_products(day, hotlist, rank_map, images):
         item["date"] = day
         item["score"] = score_row.get("score", row.get("score", 0))
         item["top150_count"] = len(top_sites)
-        item["image_url"] = image_url_for(handle, images)
+        item["image_url"] = image_url_for(handle, images) or normalize_https(row.get("image_url"))
         item["age_hours"] = round(age_hours(item.get("published_at")), 1)
         item["is_new"] = item["age_hours"] <= 24 * 7
         item["dashboard_priority"] = 3
@@ -226,6 +325,7 @@ def generate_html(day, products):
     print(f"  Date: {day}")
     print(f"  Products: {len(products)}")
     print(f"  With images: {sum(1 for p in products if p.get('image_url'))}")
+    print(f"  With currency: {sum(1 for p in products if p.get('currency'))}")
 
 
 def main():
@@ -236,6 +336,7 @@ def main():
     images = load_images()
     products = build_products(day, hotlist, rank_map, images)
     ensure_candidate_images(products, images)
+    ensure_candidate_currencies(products, images)
     generate_html(day, products)
 
 
