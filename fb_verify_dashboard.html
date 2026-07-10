@@ -60,6 +60,7 @@
   .badge-multi-hi { background:#2563eb; color:#fff; }
   .badge-new { background:#e0f2fe; color:#0369a1; }
   .badge-fresh { background:#dcfce7; color:#15803d; }
+  .date-fresh { background:#dcfce7; color:#15803d; padding:1px 5px; border-radius:4px; font-weight:700; }
   .badge-week { background:#ecfdf5; color:#047857; }
   .badge-neutral { background:#f3f4f6; color:#475569; }
   .badge-old { background:#e5e7eb; color:#64748b; }
@@ -245,6 +246,27 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 }
 
+function dateFreshClass(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return false;
+  const parts = dateStr.trim().split('-');
+  if (parts.length !== 3) return false;
+  const y = Number(parts[0]), mo = Number(parts[1]), da = Number(parts[2]);
+  if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(da)) return false;
+  const target = new Date(y, mo - 1, da);
+  if (isNaN(target.getTime())) return false;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
+  return diffDays >= 0 && diffDays <= 3;
+}
+
+function renderFreshDate(dateStr) {
+  const text = dateStr == null ? '' : String(dateStr);
+  const escaped = escapeHtml(text);
+  if (!text) return escaped;
+  return dateFreshClass(text) ? `<span class="date-fresh">${escaped}</span>` : escaped;
+}
+
 function renderChip(domain, links) {
   const href = links && links[domain];
   if (!href) return `<span class="domain-chip">${escapeHtml(domain)}</span>`;
@@ -275,7 +297,7 @@ function renderMembers(members) {
   return members.map(m => `<div class="member-row">
     <span class="domain-tag">${escapeHtml(m.domain)}</span>
     <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">打开单页 ↗</a>
-    <span>上架：${escapeHtml(m.created_at)}</span>
+    <span>上架：${renderFreshDate(m.created_at)}</span>
   </div>`).join('');
 }
 
@@ -311,7 +333,7 @@ function renderAdItem(ad, productImage) {
     <div style="flex:1;min-width:0;">
       <div class="ad-advertiser">${escapeHtml(ad.advertiser)} <span style="color:var(--muted);font-weight:400;">→ ${escapeHtml(ad.landing_domain)}</span></div>
       <div class="ad-body-text">${escapeHtml(ad.body_short)}${ad.body_short && ad.body_short.length >= 120 ? '…' : ''}</div>
-      <div class="ad-sub">${activeSpan} · 开始投放：${fmtDate(ad.start_date)} · ${escapeHtml(ad.display_format || '未知格式')}${libLink}</div>
+      <div class="ad-sub">${activeSpan} · 开始投放：${renderFreshDate(fmtDate(ad.start_date))} · ${escapeHtml(ad.display_format || '未知格式')}${libLink}</div>
     </div>
   </div>`;
 }
