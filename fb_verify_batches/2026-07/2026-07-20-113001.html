@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>本轮 FB 确认产品（4）</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root { --ink:#111827; --muted:#64748b; --line:#e5e7eb; --paper:#fff; --page:#f3f4f6; --blue:#2563eb; --blue-soft:#dbeafe; --green:#047857; --green-soft:#ecfdf5; --amber:#92400e; --amber-soft:#fef3c7; --slate:#475569; --radius:8px; }
+  body { margin:0; min-height:100vh; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; background:var(--page); color:var(--ink); }
+  button { font:inherit; }
+  .header { background:#17202f; color:#fff; padding:18px 24px 20px; border-bottom:1px solid #0f172a; }
+  .header-inner,.controls-inner,.main,.footer-note { max-width:1440px; margin:0 auto; }
+  .header-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1 { margin:0 0 6px; font-size:22px; line-height:1.2; font-weight:750; letter-spacing:0; }
+  .logo { margin-right:7px; }
+  .header-meta { max-width:960px; color:#cbd5e1; font-size:13px; line-height:1.55; }
+  .generated-at { color:#cbd5e1; font-size:12px; white-space:nowrap; }
+  .stats-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  .stat-pill { min-width:112px; padding:8px 11px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); border-radius:var(--radius); color:#cbd5e1; font-size:12px; }
+  .stat-pill strong { display:block; color:#fff; font-size:20px; line-height:1.1; margin-bottom:2px; }
+  .controls { position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--line); }
+  .controls-inner { padding:12px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .ctrl-group { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .ctrl-label { color:#64748b; font-size:12px; font-weight:750; margin-right:2px; }
+  .sort-btn,.filter-btn { border:1px solid #d1d5db; border-radius:var(--radius); padding:8px 10px; background:#f9fafb; color:#374151; font-size:12px; font-weight:650; white-space:nowrap; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
+  .sort-btn:hover,.filter-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .sort-btn.active,.filter-btn.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .main { padding:18px 24px 28px; }
+  .toolbar { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:12px; }
+  .section-title { color:#374151; font-size:15px; font-weight:750; }
+  .section-title .count { color:var(--blue); }
+  .section-note { margin-top:4px; color:var(--muted); font-size:12px; line-height:1.45; }
+  .result-section + .result-section { margin-top:24px; }
+  .section-heading { display:flex; align-items:center; gap:8px; margin:2px 0 10px; color:#374151; font-size:14px; font-weight:750; }
+  .section-heading .badge { margin-left:2px; }
+  .section-divider { height:1px; border:0; background:#d1d5db; margin:24px 0 16px; }
+  .grid { display:grid; grid-template-columns:1fr; gap:13px; }
+  .card { overflow:hidden; background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 1px 2px rgba(15,23,42,.05); }
+  .card.fresh-card { border-left:3px solid #10b981; }
+  .card.old-card { border-left:3px solid #cbd5e1; }
+  .card.not-found { border-left:3px solid #d1d5db; }
+  .card:hover { border-color:#cbd5e1; box-shadow:0 6px 18px rgba(15,23,42,.08); }
+  .warning-bar { padding:9px 14px; border-bottom:1px solid #fde68a; background:var(--amber-soft); color:var(--amber); font-size:12px; font-weight:700; line-height:1.45; }
+  .card-flex { display:grid; grid-template-columns:136px minmax(270px,1fr) minmax(310px,1.02fr); gap:16px; padding:14px; align-items:start; }
+  .not-found .card-flex { grid-template-columns:136px minmax(0,1fr); }
+  .p-thumb-wrap,.p-thumb-placeholder { width:136px; aspect-ratio:1; border-radius:6px; overflow:hidden; background:#eef2f7; display:flex; align-items:center; justify-content:center; }
+  .p-thumb-wrap { position:relative; text-decoration:none; }
+  .p-thumb-img { width:100%; height:100%; object-fit:cover; display:block; }
+  .p-thumb-wrap:hover::after { content:'打开单页 ↗'; position:absolute; inset:auto 6px 6px; padding:4px 5px; border-radius:5px; background:rgba(15,23,42,.78); color:#fff; font-size:10px; font-weight:700; text-align:center; }
+  .p-thumb-placeholder { color:#64748b; padding:12px; font-size:12px; line-height:1.4; text-align:center; }
+  .card-left,.card-right { min-width:0; }
+  .p-title { color:var(--ink); font-size:15px; font-weight:750; line-height:1.35; }
+  .p-raw-title { display:-webkit-box; overflow:hidden; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-top:5px; color:#64748b; font-size:11px; line-height:1.4; }
+  .p-meta-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:9px; }
+  .badge { display:inline-flex; align-items:center; border-radius:999px; padding:3px 7px; font-size:11px; font-weight:700; line-height:1.2; white-space:nowrap; }
+  .badge-on { background:var(--green-soft); color:var(--green); }
+  .badge-off,.badge-reused { background:#f3f4f6; color:#64748b; }
+  .badge-multi { background:#dbeafe; color:#1d4ed8; }
+  .badge-multi-hi { background:#2563eb; color:#fff; }
+  .badge-new { background:#e0f2fe; color:#0369a1; }
+  .badge-fresh { background:#dcfce7; color:#15803d; }
+  .date-fresh { background:#dcfce7; color:#15803d; padding:1px 5px; border-radius:4px; font-weight:700; }
+  .badge-week { background:#ecfdf5; color:#047857; }
+  .badge-neutral { background:#f3f4f6; color:#475569; }
+  .badge-old { background:#e5e7eb; color:#64748b; }
+  .domain-tag,.domain-chip,.fmt { display:inline-flex; align-items:center; border-radius:6px; padding:3px 6px; font-size:11px; font-weight:650; }
+  .domain-tag { background:#f3f4f6; color:#374151; }
+  .member-list { display:grid; gap:4px; margin-top:10px; }
+  .member-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; color:#64748b; font-size:11px; line-height:1.35; }
+  .member-row a,.ad-sub a { min-width:0; overflow:hidden; color:#2563eb; text-decoration:none; text-overflow:ellipsis; white-space:nowrap; }
+  .member-row a:hover,.ad-sub a:hover { text-decoration:underline; }
+  .small-label { margin:11px 0 5px; color:#64748b; font-size:11px; font-weight:700; }
+  .chip-wrap { display:flex; flex-wrap:wrap; gap:5px; }
+  .chip-inline { display:contents; }
+  .domain-chip { background:#eff6ff; color:#1d4ed8; }
+  .domain-chip-link { cursor:pointer; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px; transition:background .15s,color .15s; }
+  .domain-chip-link:hover { background:#dbeafe; color:#1e40af; }
+  .more-chip { display:inline-flex; align-items:center; border-radius:6px; padding:3px 6px; background:#f3f4f6; color:#475569; cursor:pointer; font-size:11px; font-weight:700; }
+  .format-row { display:flex; flex-wrap:wrap; gap:5px; }
+  .format-row .fmt { background:#f5f3ff; color:#6d28d9; }
+  .metrics-row { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); overflow:hidden; border:1px solid #e5e7eb; border-radius:7px; }
+  .metric-box { min-width:0; padding:9px 6px; border-right:1px solid #e5e7eb; text-align:center; }
+  .metric-box:last-child { border-right:0; }
+  .metric-num { overflow:hidden; color:#2563eb; font-size:20px; font-weight:800; line-height:1.15; text-overflow:ellipsis; white-space:nowrap; }
+  .metric-label { margin-top:3px; color:#64748b; font-size:10px; line-height:1.25; }
+  .freshness-line { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; }
+  .launch-dates { margin-top:8px; color:#475569; font-size:11px; line-height:1.45; }
+  .toggle-ads-btn { margin-top:10px; border:1px solid #d1d5db; border-radius:var(--radius); padding:8px 10px; background:#fff; color:#374151; cursor:pointer; font-size:12px; font-weight:750; }
+  .toggle-ads-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .ads-panel { display:none; margin-top:10px; border-top:1px dashed #d1d5db; padding-top:8px; }
+  .ads-panel.open { display:block; }
+  .ad-item { display:flex; gap:9px; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:11px; }
+  .ad-item:last-child { border-bottom:0; }
+  .ad-thumb,.ad-thumb-placeholder { width:52px; height:52px; flex:0 0 52px; border-radius:6px; background:#eef2f7; object-fit:cover; }
+  .ad-thumb-placeholder { display:flex; align-items:center; justify-content:center; color:#64748b; font-size:16px; }
+  .ad-advertiser { color:var(--ink); font-weight:750; }
+  .ad-body-text { display:-webkit-box; overflow:hidden; margin-top:2px; color:#475569; line-height:1.4; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .ad-sub { margin-top:3px; color:#64748b; font-size:10px; line-height:1.35; }
+  .ad-active { color:#047857; font-weight:700; } .ad-inactive { color:#64748b; }
+  .not-found-box { margin-top:12px; border:1px solid #e5e7eb; border-radius:7px; padding:11px 12px; background:#f9fafb; color:#475569; font-size:12px; line-height:1.5; }
+  .not-found-box .nf-title { margin-bottom:4px; color:#374151; font-weight:750; }
+  .not-found-box .nf-note { margin-top:8px; border-top:1px dashed #d1d5db; padding-top:8px; color:#64748b; font-size:11px; }
+  .footer-note { padding:2px 24px 40px; color:#64748b; font-size:11px; line-height:1.75; }
+  .footer-note b { color:#475569; }
+  .empty { padding:50px 20px; border:1px solid var(--line); border-radius:var(--radius); background:#fff; color:#64748b; text-align:center; }
+  @media (max-width:920px) {
+    .card-flex,.not-found .card-flex { grid-template-columns:120px minmax(0,1fr); }
+    .card-right { grid-column:1 / -1; }
+    .p-thumb-wrap,.p-thumb-placeholder { width:120px; }
+  }
+  @media (max-width:700px) {
+    .header,.main,.controls-inner,.footer-note { padding-left:14px; padding-right:14px; }
+    .metrics-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .metric-box:nth-child(2) { border-right:0; }
+    .metric-box:nth-child(-n+2) { border-bottom:1px solid #e5e7eb; }
+  }
+  @media (max-width:600px) {
+    h1 { font-size:18px; }
+    .header { padding-top:14px; padding-bottom:16px; }
+    .header-meta { font-size:12px; }
+    .generated-at { white-space:normal; }
+    .stats-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px; }
+    .stat-pill { min-width:0; padding:7px 9px; font-size:11px; }
+    .stat-pill strong { font-size:18px; }
+    .controls-inner { display:flex; align-items:stretch; gap:8px; padding-top:9px; padding-bottom:9px; }
+    .ctrl-group { width:100%; flex:0 0 100%; flex-wrap:nowrap; gap:6px; overflow-x:auto; overscroll-behavior-x:contain; padding:1px 1px 3px; -webkit-overflow-scrolling:touch; }
+    .ctrl-label { flex:0 0 auto; }
+    .sort-btn,.filter-btn { min-height:36px; flex:0 0 auto; padding:7px 10px; touch-action:manipulation; }
+    .main { padding-top:14px; padding-bottom:22px; }
+    .toolbar { margin-bottom:10px; }
+    .section-title { font-size:14px; }
+    .section-note { font-size:11px; }
+    .section-heading { margin-bottom:8px; font-size:13px; }
+    .grid { grid-template-columns:minmax(0,1fr); gap:10px; }
+    .card-flex,.not-found .card-flex { grid-template-columns:88px minmax(0,1fr); gap:10px; padding:10px; }
+    .p-thumb-wrap,.p-thumb-placeholder { width:88px; aspect-ratio:1; }
+    .p-thumb-wrap { min-height:88px; touch-action:manipulation; }
+    .p-thumb-placeholder { padding:8px; font-size:11px; }
+    .p-title { font-size:14px; line-height:1.3; }
+    .p-raw-title { margin-top:4px; font-size:10px; line-height:1.35; }
+    .p-meta-row { gap:5px; margin-top:7px; }
+    .badge { padding:3px 6px; font-size:10px; }
+    .member-list { gap:2px; margin-top:7px; }
+    .member-row { gap:5px; font-size:10px; }
+    .member-row a { display:inline-flex; align-items:center; min-height:32px; padding:4px 0; touch-action:manipulation; }
+    .small-label { margin:8px 0 4px; font-size:10px; }
+    .chip-wrap,.format-row { gap:6px; }
+    .domain-tag,.domain-chip,.fmt { font-size:10px; }
+    .domain-chip-link,.more-chip { min-height:32px; padding:5px 8px; touch-action:manipulation; }
+    .more-chip { font-size:10px; }
+    .card-right { grid-column:1 / -1; }
+    .metrics-row { border-radius:6px; }
+    .metric-box { padding:6px 5px; }
+    .metric-num { font-size:17px; }
+    .metric-label { margin-top:2px; font-size:9px; line-height:1.2; }
+    .freshness-line { gap:6px; margin-top:8px; }
+    .toggle-ads-btn { min-height:36px; margin-top:8px; padding:7px 10px; font-size:11px; touch-action:manipulation; }
+    .warning-bar { padding:8px 10px; font-size:11px; }
+    .not-found-box { margin-top:8px; padding:9px 10px; font-size:11px; }
+    .footer-note { padding-top:0; padding-bottom:28px; font-size:10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div>
+        <h1><span class="logo">📣</span>本轮 FB 确认产品（4）</h1>
+        <div class="header-meta">
+          本次增量验证确认有相关投放的产品；产品图可直接打开来源单页。
+        </div>
+      </div>
+      <div class="generated-at">生成时间：2026-07-20T03:34:13.017Z</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-pill"><strong>4</strong>产品组</div>
+      <div class="stat-pill"><strong>4</strong>查到 FB 投放</div>
+      <div class="stat-pill"><strong>0</strong>本周新投（≤7 天）</div>
+      <div class="stat-pill"><strong>3</strong>多站跨投（≥3 站）</div>
+      <div class="stat-pill"><strong>0</strong>多监控站跟品</div>
+      <div class="stat-pill"><strong>0</strong>未查到 FB 投放</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="controls-inner">
+    <div class="ctrl-group">
+      <span class="ctrl-label">排序：</span>
+      <button class="sort-btn active" data-sort="freshness" data-label="新鲜度">新鲜度 ↑</button>
+      <button class="sort-btn" data-sort="cross" data-label="跨站数">跨站数 ↓</button>
+      <button class="sort-btn" data-sort="fbtotal" data-label="FB总匹配">FB总匹配 ↓</button>
+      <button class="sort-btn" data-sort="monitor" data-label="监控站跟品数">监控站跟品数 ↓</button>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">筛选：</span>
+      <button class="filter-btn" data-filter="multi">仅看多站跨投(≥3站)</button>
+      <button class="filter-btn" data-filter="monitor2">仅看多监控站跟品(≥2站)</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="toolbar">
+    <div>
+      <div class="section-title">本轮确认产品 <span class="count" id="result-count">4</span></div>
+      <div class="section-note" id="result-note">新鲜度排序：先显示已查到投放的产品，最长投放天数越短越靠前。</div>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none;">当前筛选条件下暂无产品</div>
+</div>
+
+<div class="footer-note">
+  <b>数据局限：</b>
+  ① 广告样本为 Facebook 广告库第一页查询结果，单次查询最多 ≤30 条，非全量投放数据；
+  ② "FB总匹配"为 Facebook 广告库接口返回的报告值（fb_total_reported），可能包含降噪前的宽泛匹配；
+  ③ "跨站投放站点数"基于抓取到的样本去重统计，实际跨站数量可能更多；
+  ④ 部分广告链接、图片素材可能已过期或被 Facebook 广告库清理，缩略图为 FB CDN 热链，若显示失败为链接过期，不代表数据有误；
+  ⑤ "监控站跟品数"来自 spspy 单页监控本月同款产品跨站分组（duplicate_groups.json），分组外按归一化标题二次合并，可能仍有少量漏并/误并。
+</div>
+
+<script>
+const RECORDS = [{"group_id": "G0281", "source": "daily_new", "clean_title": "All‑in‑One Wheel Restoration Paste – Erases scratches & curb rash instantly. Molecular bonding, rock‑hard protection. Showroom shine", "raw_title": "🥳2026 HOT SALE🥳💞50K+ SOLD!✨🛞 All‑in‑One Wheel Restoration Paste – Erases scratches & curb rash instantly. Molecular bonding, rock‑hard protection. Showroom shine! 💎🚗", "image_url": "https://cdn.shopify.com/s/files/1/0668/2715/7726/files/comparison-ad-creative_b349a67b-1803-4c6a-a134-c1beb007e17b.png?v=1783050720", "members": [{"domain": "bostonrain.com", "handle": "all-in-one-wheel-care-restoration-paste-1", "url": "https://bostonrain.com/products/all-in-one-wheel-care-restoration-paste-1", "created_at": "2026-07-03", "title": "🥳2026 HOT SALE🥳💞50K+ SOLD!✨🛞 All‑in‑One Wheel Restoration Paste – Erases scratches & curb rash instantly. Molecular bonding, rock‑hard protection. Showroom shine! 💎🚗"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["chic-lucky.com"], "cross_site_links": {"chic-lucky.com": "https://chic-lucky.com/products/wheelcare"}, "cross_count": 1, "fb_total": 5, "relevant_count": 5, "max_run_days": 13, "first_start_date": "2026-07-07", "latest_start_date": "2026-07-12", "own_hit": false, "formats": {"VIDEO": 5}, "ad_samples": [{"advertiser": "Chic-lucky", "landing_domain": "chic-lucky.com", "body_short": "Curb rash? Light scratches? Say goodbye—at home. 🚗✨\n\nOur All-in-One Wheel Restoration Paste erases surface scuffs, blend", "start_date": 1783407600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2922876598066520", "image_url": null}, {"advertiser": "Chic-lucky", "landing_domain": "chic-lucky.com", "body_short": "Curb rash? Light scratches? Say goodbye—at home. 🚗✨\n\nOur All-in-One Wheel Restoration Paste erases surface scuffs, blend", "start_date": 1783753200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1544624667153537", "image_url": null}, {"advertiser": "Chic-lucky", "landing_domain": "chic-lucky.com", "body_short": "Curb rash? Light scratches? Say goodbye—at home. 🚗✨\n\nOur All-in-One Wheel Restoration Paste erases surface scuffs, blend", "start_date": 1783407600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1648120672951284", "image_url": null}, {"advertiser": "Chic-lucky", "landing_domain": "chic-lucky.com", "body_short": "Curb rash? Light scratches? Say goodbye—at home. 🚗✨\n\nOur All-in-One Wheel Restoration Paste erases surface scuffs, blend", "start_date": 1783494000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1550126293271440", "image_url": null}, {"advertiser": "Chic-lucky", "landing_domain": "chic-lucky.com", "body_short": "Curb rash? Light scratches? Say goodbye—at home. 🚗✨\n\nOur All-in-One Wheel Restoration Paste erases surface scuffs, blend", "start_date": 1783839600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1063744372745148", "image_url": null}], "note": null, "warning": null, "query": "All‑in‑One Wheel Restoration Paste – Erases"}, {"group_id": "G0282", "source": "daily_new", "clean_title": "Natural Essential Oil Pet Pest Repellent Collar", "raw_title": "Natural Essential Oil Pet Pest Repellent Collar", "image_url": "https://cdn.shopify.com/s/files/1/0668/2715/7726/files/spp_shopify20260701214813_3960926d18011cac1fb13abbafc934e9_ca03ed38-6e7a-483b-9348-3cfa5ccfc43c.png?v=1782976130", "members": [{"domain": "bostonrain.com", "handle": "nt-collar", "url": "https://bostonrain.com/products/nt-collar", "created_at": "2026-07-02", "title": "Natural Essential Oil Pet Pest Repellent Collar"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["bostonrain.com", "londonnk.com", "buboop.com", "armazoo.com", "shimmer07.com", "copenrain.com", "www.flosunni.com", "shoponlygo.com", "relaxrich.com", "meteor1776.com", "houstonmoon.com", "focoor.com", "cornfloweri.com", "www.britiyaituk.com", "www.innovationek.com"], "cross_site_links": {"bostonrain.com": "https://bostonrain.com/products/nt-collar", "londonnk.com": "https://londonnk.com/products/natural-essential-oil-pet-pest-repellent-collar-1", "buboop.com": "https://buboop.com/products/nhj", "armazoo.com": "https://armazoo.com/products/natural-essential-oil-pet-pest-repellent-collar-1", "shimmer07.com": "https://shimmer07.com/products/pest-repellenq22", "copenrain.com": "https://copenrain.com/products/nt-collar", "www.flosunni.com": "https://www.flosunni.com/products/c0706xr1", "shoponlygo.com": "http://shoponlygo.com/", "relaxrich.com": "https://relaxrich.com/products/natural-essential-oil-pet-pest-repellent-collar", "meteor1776.com": "https://meteor1776.com/products/nhj", "houstonmoon.com": "https://houstonmoon.com/products/natural-essential-oil-pet-pest-repellent-collar", "focoor.com": "https://focoor.com/products/pest-repellen-1", "cornfloweri.com": "https://cornfloweri.com/products/pest-repellenq-1", "www.britiyaituk.com": "https://www.britiyaituk.com/products/natural-essential-oil-pet-pest-repellent-collar", "www.innovationek.com": "https://www.innovationek.com/products/natural-essential-oil-pet-pest-repellent-collar"}, "cross_count": 15, "fb_total": 28, "relevant_count": 28, "max_run_days": 16, "first_start_date": "2026-07-04", "latest_start_date": "2026-07-19", "own_hit": true, "formats": {"VIDEO": 28}, "ad_samples": [{"advertiser": "BostonRain", "landing_domain": "bostonrain.com", "body_short": "# Natural Essential Oil Pet Pest Repellent Collar\nNatural plant oil flea & tick collar for dogs & cats\n🌱 Chemical-free m", "start_date": 1783407600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=998810259714531", "image_url": null}, {"advertiser": "London NK", "landing_domain": "londonnk.com", "body_short": "🌿 Natural Essential Oil Pet Pest Repellent Collar｜Plant-Based Formula – 8 Months Continuous Protection – Repels Fleas & ", "start_date": 1783321200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1038402305615957", "image_url": null}, {"advertiser": "London NK", "landing_domain": "londonnk.com", "body_short": "🌿 Natural Essential Oil Pet Pest Repellent Collar｜Plant-Based Formula – 8 Months Continuous Protection – Repels Fleas & ", "start_date": 1783148400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1751360022521900", "image_url": null}, {"advertiser": "Buboop", "landing_domain": "buboop.com", "body_short": "🌿 Natural Essential Oil Pet Pest Repellent Collar｜Plant-Based Formula – 8 Months Continuous Protection – Repels Fleas & ", "start_date": 1783580400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2757084811336273", "image_url": null}, {"advertiser": "Armazoo shop", "landing_domain": "armazoo.com", "body_short": "🌿 Coleira repelente de pragas para animais de estimação com óleos essenciais naturais｜Fórmula à base de plantas – 8 mese", "start_date": 1783926000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2056183648613287", "image_url": null}, {"advertiser": "Shimmer07 UK", "landing_domain": "shimmer07.com", "body_short": "🌿 That lovely woodland walk? Your dog thinks it's an all-you-can-eat buffet for ticks.\n\nYou know the drill. You come bac", "start_date": 1783148400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=997871256412405", "image_url": null}], "note": null, "warning": null, "query": "Natural Essential Oil Pet Pest Repellent"}, {"group_id": "G0277", "source": "daily_new", "clean_title": "Denture Dome Ultrasonic UV-C Cleaner – For a fresher, cleaner denture in just 5 minutes", "raw_title": "🦷 Denture Dome Ultrasonic UV-C Cleaner – For a fresher, cleaner denture in just 5 minutes", "image_url": "https://cdn.shopify.com/s/files/1/0622/2734/9558/files/3_6ce57d66-23d9-4182-b76a-82ca9f6afe21.png?v=1782980709", "members": [{"domain": "letemall.com", "handle": "denture-dome-ultrasonic-uv-c-cleaner", "url": "https://letemall.com/products/denture-dome-ultrasonic-uv-c-cleaner", "created_at": "2026-07-02", "title": "🦷 Denture Dome Ultrasonic UV-C Cleaner – For a fresher, cleaner denture in just 5 minutes"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["letemall.com", "norbbshop.com", "www.awisdomas.com", "moonighty.com"], "cross_site_links": {"letemall.com": "https://letemall.com/products/denture-dome-ultrasonic-uv-c-cleaner", "norbbshop.com": "https://norbbshop.com/products/cleaning-machine", "www.awisdomas.com": "https://www.awisdomas.com/products/denture-dome-ultrasonic-uv-c-cleaner", "moonighty.com": "https://moonighty.com/products/small-braces-ultra5"}, "cross_count": 4, "fb_total": 8, "relevant_count": 8, "max_run_days": 18, "first_start_date": "2026-07-02", "latest_start_date": "2026-07-13", "own_hit": true, "formats": {"VIDEO": 8}, "ad_samples": [{"advertiser": "Letemall store", "landing_domain": "letemall.com", "body_short": "Your dentures look clean. But do you know what's hiding in the microscopic gaps? 🦷😬\n\nBacteria. Odor. Stuff that brushing", "start_date": 1783062000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1035527482250798", "image_url": null}, {"advertiser": "Norbbstore", "landing_domain": "norbbshop.com", "body_short": "🦷 Your dentures may look clean… but tiny grooves and crevices can still trap residue and odors.\n\nBrushing alone can't re", "start_date": 1782975600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1034910162329642", "image_url": null}, {"advertiser": "Letemall store", "landing_domain": "letemall.com", "body_short": "Your dentures look clean. But do you know what's hiding in the microscopic gaps? 🦷😬\n\nBacteria. Odor. Stuff that brushing", "start_date": 1783407600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1722424602410858", "image_url": null}, {"advertiser": "Letemall store", "landing_domain": "letemall.com", "body_short": "Your dentures look clean. But do you know what's hiding in the microscopic gaps? 🦷😬\n\nBacteria. Odor. Stuff that brushing", "start_date": 1783926000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1701599947776945", "image_url": null}, {"advertiser": "Letemall store", "landing_domain": "letemall.com", "body_short": "Your dentures look clean. But do you know what's hiding in the microscopic gaps? 🦷😬\n\nBacteria. Odor. Stuff that brushing", "start_date": 1783926000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2406084466581634", "image_url": null}, {"advertiser": "Awisdomas", "landing_domain": "www.awisdomas.com", "body_short": "Your dentures look clean. But do you know what's hiding in the microscopic gaps? 🦷😬\n\nBacteria. Odor. Stuff that brushing", "start_date": 1783926000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=28706302552302759", "image_url": null}], "note": null, "warning": null, "query": "Denture Dome Ultrasonic UV-C Cleaner"}, {"group_id": "G0271", "source": "daily_new", "clean_title": "⭐ Offre à durée limitée – Les gants de gommage les plus populaires", "raw_title": "⭐ Offre à durée limitée – Les 2026 gants de gommage les plus populaires ! 🚿", "image_url": "https://cdn.shopify.com/s/files/1/0816/1201/3889/files/3_430x_7c999f1e-8be6-49c9-bfbd-1cea86f8a8aa.webp?v=1783563199", "members": [{"domain": "copensunny.com", "handle": "lilleette", "url": "https://copensunny.com/products/lilleette", "created_at": "2026-07-06", "title": "⭐ Offre à durée limitée – Les 2026 gants de gommage les plus populaires ! 🚿"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["www.prepmymeal.fr", "www.songmics.fr", "copensunny.com", "www.chaletsoasis.com", "dimigo.shop"], "cross_site_links": {"www.prepmymeal.fr": "https://www.prepmymeal.fr/discount/ETE15?redirect=/pages/category-landingpage", "www.songmics.fr": "https://www.songmics.fr/collections/bureaux-assis-debout-et-chaises-de-bureau", "copensunny.com": "https://copensunny.com/products/ehgj", "www.chaletsoasis.com": "https://www.chaletsoasis.com/summer-special", "dimigo.shop": "https://dimigo.shop/products/scratch-td"}, "cross_count": 5, "fb_total": 43, "relevant_count": 29, "max_run_days": 34, "first_start_date": "2026-06-16", "latest_start_date": "2026-07-19", "own_hit": true, "formats": {"VIDEO": 22, "IMAGE": 6, "CAROUSEL": 1}, "ad_samples": [{"advertiser": "prepmymeal", "landing_domain": "www.prepmymeal.fr", "body_short": "Offre à durée limitée : Les grandes Soldes d'Été prepmymeal débarquent avec jusqu'à -30% de réduction ! 😎💪\n\nFaites le pl", "start_date": 1783234800, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2313236902815500", "image_url": null}, {"advertiser": "prepmymeal", "landing_domain": "www.prepmymeal.fr", "body_short": "Offre à durée limitée : Les grandes Soldes d'Été prepmymeal débarquent avec jusqu'à -30% de réduction ! 😎💪\n\nFaites le pl", "start_date": 1783234800, "is_active": true, "display_format": "IMAGE", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1497372964934121", "image_url": "https://scontent-lax3-1.xx.fbcdn.net/v/t39.35426-6/738866601_4507828196169655_7728833204093461940_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=c53f8f&_nc_ohc=d4jacyxBFO8Q7kNvwFzL4Nd&_nc_oc=AdpK-Cm3NZAlzHUjBfIHpOSEwni9Y7Thx9n9f1NaD6MdYz60Ob1q4VbYoF3VyGeqAek&_nc_zt=14&_nc_ht=scontent-lax3-1.xx&_nc_gid=UrxViUQ9_6kGZraBwzwKEw&_nc_ss=7b289&oh=00_AQAuIEegeDUQUqg5ZpP29SoL1_urvJScQ79KUtiUKiOZ7w&oe=6A634F82"}, {"advertiser": "prepmymeal", "landing_domain": "www.prepmymeal.fr", "body_short": "Offre à durée limitée : Les grandes Soldes d'Été prepmymeal débarquent avec jusqu'à -30% de réduction ! 😎💪\n\nFaites le pl", "start_date": 1783234800, "is_active": true, "display_format": "IMAGE", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1602816011409869", "image_url": "https://scontent-lax3-1.xx.fbcdn.net/v/t39.35426-6/740079501_1333328518996294_2447948398910207621_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=c53f8f&_nc_ohc=ZHLo36IfDSEQ7kNvwHQUHeK&_nc_oc=AdrlUm2FOd7C0aUYgItLuSYYdJ0CSPLarWGvp6yBPWhFbqVRsxAPk5QnjWYtxnGW5mg&_nc_zt=14&_nc_ht=scontent-lax3-1.xx&_nc_gid=UrxViUQ9_6kGZraBwzwKEw&_nc_ss=7b289&oh=00_AQAjHYyZwCDpbX3Fu_ROet7CbAmYT9zgd9huLdssbu_Ljg&oe=6A635544"}, {"advertiser": "prepmymeal", "landing_domain": "www.prepmymeal.fr", "body_short": "Offre à durée limitée : Les grandes Soldes d'Été prepmymeal débarquent avec jusqu'à -30% de réduction ! 😎💪\n\nFaites le pl", "start_date": 1783839600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1495468282381098", "image_url": null}, {"advertiser": "prepmymeal", "landing_domain": "www.prepmymeal.fr", "body_short": "Offre à durée limitée : Les grandes Soldes d'Été prepmymeal débarquent avec jusqu'à -30% de réduction ! 😎💪\n\nFaites le pl", "start_date": 1783753200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=862135819989772", "image_url": null}, {"advertiser": "prepmymeal", "landing_domain": "www.prepmymeal.fr", "body_short": "Offre à durée limitée : Les grandes Soldes d'Été prepmymeal débarquent avec jusqu'à -30% de réduction ! 😎💪\n\nFaites le pl", "start_date": 1783839600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1032616549321780", "image_url": null}], "note": null, "warning": null, "query": "Offre à durée limitée – Les"}];
+const SORT_DEFAULT_DIRECTIONS = {
+  freshness: 'asc',
+  cross: 'desc',
+  fbtotal: 'desc',
+  monitor: 'desc',
+};
+
+let currentSort = 'freshness';
+let currentDirection = SORT_DEFAULT_DIRECTIONS[currentSort];
+let activeFilter = null;
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts * 1000);
+  return d.toISOString().slice(0,10);
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+function dateFreshClass(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return false;
+  const parts = dateStr.trim().split('-');
+  if (parts.length !== 3) return false;
+  const y = Number(parts[0]), mo = Number(parts[1]), da = Number(parts[2]);
+  if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(da)) return false;
+  const target = new Date(y, mo - 1, da);
+  if (isNaN(target.getTime())) return false;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
+  return diffDays >= 0 && diffDays <= 3;
+}
+
+function renderFreshDate(dateStr) {
+  const text = dateStr == null ? '' : String(dateStr);
+  const escaped = escapeHtml(text);
+  if (!text) return escaped;
+  return dateFreshClass(text) ? `<span class="date-fresh">${escaped}</span>` : escaped;
+}
+
+function renderChip(domain, links) {
+  const href = links && links[domain];
+  if (!href) return `<span class="domain-chip">${escapeHtml(domain)}</span>`;
+  return `<a class="domain-chip domain-chip-link" href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(domain)}</a>`;
+}
+
+function renderChips(domains, links) {
+  const shown = domains.slice(0, 8);
+  const rest = domains.length - shown.length;
+  const shownHtml = shown.map(d => renderChip(d, links)).join('');
+  if (rest <= 0) return shownHtml;
+  const fullJson = escapeHtml(JSON.stringify({domains, links: links || {}}));
+  return `<span class="chip-inline" data-full="${fullJson}">${shownHtml}<span class="more-chip" onclick="expandChips(this.parentElement)">+${rest} 更多</span></span>`;
+}
+
+function expandChips(wrap) {
+  const data = JSON.parse(wrap.dataset.full);
+  wrap.outerHTML = data.domains.map(d => renderChip(d, data.links)).join('');
+}
+
+function renderFormats(formats) {
+  const keys = Object.keys(formats || {});
+  if (!keys.length) return '<span style="color:var(--muted);font-size:11px;">无素材类型数据</span>';
+  return keys.map(k => `<span class="fmt">${k}×${formats[k]}</span>`).join('');
+}
+
+function renderMembers(members) {
+  return members.map(m => `<div class="member-row">
+    <span class="domain-tag">${escapeHtml(m.domain)}</span>
+    <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">打开单页 ↗</a>
+    <span>上架：${renderFreshDate(m.created_at)}</span>
+  </div>`).join('');
+}
+
+function adThumbError(img) {
+  const fallback = img.dataset.fallback;
+  if (fallback) {
+    img.removeAttribute('data-fallback');
+    img.onerror = function () { adThumbError(img); };
+    img.src = fallback;
+  } else {
+    img.outerHTML = '<div class="ad-thumb-placeholder">🎬</div>';
+  }
+}
+
+function renderAdItem(ad, productImage) {
+  let thumb;
+  if (ad.image_url) {
+    const fallbackAttr = productImage ? ` data-fallback="${escapeHtml(productImage)}"` : '';
+    thumb = `<img class="ad-thumb" src="${escapeHtml(ad.image_url)}"${fallbackAttr} alt="" loading="lazy" onerror="adThumbError(this)">`;
+  } else if (productImage) {
+    thumb = `<img class="ad-thumb" src="${escapeHtml(productImage)}" alt="" loading="lazy" onerror="adThumbError(this)">`;
+  } else {
+    thumb = `<div class="ad-thumb-placeholder">🎬</div>`;
+  }
+  const activeSpan = ad.is_active
+    ? '<span class="ad-active">● 投放中</span>'
+    : '<span class="ad-inactive">○ 已停止</span>';
+  const libLink = ad.fb_lib_url
+    ? ` · <a href="${escapeHtml(ad.fb_lib_url)}" target="_blank" rel="noopener">查看广告库原文 →</a>`
+    : '';
+  return `<div class="ad-item">
+    ${thumb}
+    <div style="flex:1;min-width:0;">
+      <div class="ad-advertiser">${escapeHtml(ad.advertiser)} <span style="color:var(--muted);font-weight:400;">→ ${escapeHtml(ad.landing_domain)}</span></div>
+      <div class="ad-body-text">${escapeHtml(ad.body_short)}${ad.body_short && ad.body_short.length >= 120 ? '…' : ''}</div>
+      <div class="ad-sub">${activeSpan} · 开始投放：${renderFreshDate(fmtDate(ad.start_date))} · ${escapeHtml(ad.display_format || '未知格式')}${libLink}</div>
+    </div>
+  </div>`;
+}
+
+function monitorBadge(r) {
+  const n = r.member_count;
+  if (n >= 3) return `<span class="badge badge-multi-hi">👥 ${n} 个监控站在做</span>`;
+  if (n >= 2) return `<span class="badge badge-multi">👥 ${n} 个监控站在做</span>`;
+  return `<span class="badge badge-off">👤 1 个监控站在做</span>`;
+}
+
+function runDays(r) {
+  const n = Number(r.max_run_days);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function freshnessBadge(r) {
+  const days = runDays(r);
+  if (days === null) return '<span class="badge badge-neutral">投放天数未返回</span>';
+  if (days <= 3) return '<span class="badge badge-fresh">🔥 新起投</span>';
+  if (days <= 7) return '<span class="badge badge-week">本周新投</span>';
+  if (days <= 30) return '<span class="badge badge-neutral">投放中</span>';
+  if (days > 90) return '<span class="badge badge-old">老品</span>';
+  return '<span class="badge badge-neutral">持续投放</span>';
+}
+
+function cardFreshnessClass(r) {
+  const days = runDays(r);
+  if (days !== null && days <= 7) return ' fresh-card';
+  if (days !== null && days > 90) return ' old-card';
+  return '';
+}
+
+function thumbHtml(r) {
+  if (!r.image_url) return '<div class="p-thumb-placeholder">未取到产品图</div>';
+  const url = r.members[0] && r.members[0].url ? r.members[0].url : '#';
+  return `<a class="p-thumb-wrap" href="${escapeHtml(url)}" target="_blank" rel="noopener"><img class="p-thumb-img" src="${escapeHtml(r.image_url)}" alt="${escapeHtml(r.clean_title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.outerHTML='<div class=\'p-thumb-placeholder\'>图片加载失败</div>'"></a>`;
+}
+
+function renderCard(r) {
+  const warningHtml = r.warning ? `<div class="warning-bar">${escapeHtml(r.warning)}</div>` : '';
+  const reusedBadge = r.reused ? '<span class="badge badge-reused">复用今日已验证结果</span>' : (r.found || r.relevant_count !== undefined ? '<span class="badge badge-new">本轮新查询</span>' : '');
+
+  if (!r.found) {
+    const reasonLine = r.verify_error && r.verify_error.includes('尚未验证')
+      ? `<div>⏳ ${escapeHtml(r.verify_error)}</div>`
+      : `<div>查询词："${escapeHtml(r.query || '')}"，广告库返回 0 条相关匹配${r.verify_error ? '（查询出错：' + escapeHtml(r.verify_error) + '）' : ''}。</div>`;
+    return `<article class="card not-found">
+      <div class="card-flex">
+        ${thumbHtml(r)}
+        <div class="card-left">
+          <div class="p-title">${escapeHtml(r.clean_title)}</div>
+          <div class="p-raw-title">原始标题：${escapeHtml(r.raw_title)}</div>
+          <div class="p-meta-row">${monitorBadge(r)} ${reusedBadge}</div>
+          <div class="member-list">${renderMembers(r.members)}</div>
+          <div class="not-found-box" style="margin-top:10px;">
+            <div class="nf-title">❌ FB 未查到相关投放</div>
+            ${reasonLine}
+            ${r.note ? `<div class="nf-note">📝 二次核查备注：${escapeHtml(r.note)}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    </article>`;
+  }
+
+  const adsHtml = r.ad_samples.length
+    ? r.ad_samples.map(ad => renderAdItem(ad, r.image_url)).join('')
+    : '<div style="color:var(--muted);font-size:12px;">无广告样本明细</div>';
+  const launchDates = r.first_start_date
+    ? (r.latest_start_date && r.latest_start_date !== r.first_start_date
+      ? `首次起投：${renderFreshDate(r.first_start_date)} · 最近加投：${renderFreshDate(r.latest_start_date)}`
+      : `起投日期：${renderFreshDate(r.first_start_date)}`)
+    : '起投日期：未返回';
+
+  return `<article class="card${cardFreshnessClass(r)}">
+    ${warningHtml}
+    <div class="card-flex">
+      ${thumbHtml(r)}
+      <div class="card-left">
+        <div class="p-title">${escapeHtml(r.clean_title)}</div>
+        <div class="p-raw-title">原始标题：${escapeHtml(r.raw_title)}</div>
+        <div class="p-meta-row">${monitorBadge(r)} ${reusedBadge}</div>
+        <div class="member-list">${renderMembers(r.members)}</div>
+        <div>
+          <div class="small-label">跨站落地域名（${r.cross_domains.length}）</div>
+          <div class="chip-wrap">${renderChips(r.cross_domains, r.cross_site_links)}</div>
+        </div>
+        <div>
+          <div class="small-label">素材类型分布</div>
+          <div class="format-row">${renderFormats(r.formats)}</div>
+        </div>
+      </div>
+      <div class="card-right">
+        <div class="metrics-row">
+          <div class="metric-box"><div class="metric-num">${r.cross_count}</div><div class="metric-label">跨站投放站点数</div></div>
+          <div class="metric-box"><div class="metric-num">${r.fb_total ?? '—'}</div><div class="metric-label">FB总匹配</div></div>
+          <div class="metric-box"><div class="metric-num">${r.relevant_count}</div><div class="metric-label">降噪后相关条数</div></div>
+          <div class="metric-box"><div class="metric-num">${r.max_run_days ?? '—'}</div><div class="metric-label">最长投放天数</div></div>
+        </div>
+        <div class="freshness-line">
+          <div>${freshnessBadge(r)}</div>
+          <div>${r.own_hit ? '<span class="badge badge-on">✅ 本站在投</span>' : '<span class="badge badge-off">⚪ 本站未投</span>'}</div>
+        </div>
+        <div class="launch-dates">${launchDates}</div>
+        <button class="toggle-ads-btn" onclick="const p=this.nextElementSibling;p.classList.toggle('open');this.textContent=p.classList.contains('open')?'收起广告样本 ▲':'展开广告样本（最多6条）▼';">展开广告样本（最多6条）▼</button>
+        <div class="ads-panel">${adsHtml}</div>
+      </div>
+    </div>
+  </article>`;
+}
+
+function sortValue(r, key) {
+  if (key === 'cross') return r.cross_count || 0;
+  if (key === 'fbtotal') return r.fb_total || 0;
+  if (key === 'monitor') return r.member_count || 0;
+  return 0;
+}
+
+function freshnessCompare(a, b, direction = 'asc') {
+  const ad = runDays(a);
+  const bd = runDays(b);
+  // 未返回投放天数的已查到组始终排在有天数组之后，避免被误解为最新/最老投放。
+  if (ad === null && bd !== null) return 1;
+  if (ad !== null && bd === null) return -1;
+  if (ad !== null && bd !== null && ad !== bd) {
+    return direction === 'asc' ? ad - bd : bd - ad;
+  }
+  return (b.cross_count || 0) - (a.cross_count || 0) ||
+    (b.relevant_count || 0) - (a.relevant_count || 0) ||
+    String(a.clean_title || '').localeCompare(String(b.clean_title || ''), 'zh-CN');
+}
+
+function directionArrow(direction) {
+  return direction === 'asc' ? '↑' : '↓';
+}
+
+function updateSortButtons() {
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    const key = btn.dataset.sort;
+    const isActive = key === currentSort;
+    const direction = isActive ? currentDirection : SORT_DEFAULT_DIRECTIONS[key];
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+    btn.textContent = `${btn.dataset.label} ${directionArrow(direction)}`;
+  });
+}
+
+function sectionHtml(title, count, cards, kind) {
+  if (!cards.length) return '';
+  const hint = kind === 'found'
+    ? (currentSort === 'freshness'
+      ? `最长投放天数${currentDirection === 'asc' ? '由短到长' : '由长到短'}（未返回天数的组排在最后）`
+      : '已查到相关 FB 投放')
+    : '查询未命中或尚未验证，固定置于列表底部';
+  return `<section class="result-section result-${kind}">
+    <div class="section-heading">${title} <span class="badge ${kind === 'found' ? 'badge-on' : 'badge-off'}">${count} 组</span></div>
+    <div class="section-note">${hint}</div>
+    <div class="grid">${cards}</div>
+  </section>`;
+}
+
+function render() {
+  let data = RECORDS.slice();
+  if (activeFilter === 'multi') {
+    data = data.filter(r => r.found && (r.cross_count || 0) >= 3);
+  } else if (activeFilter === 'monitor2') {
+    data = data.filter(r => r.member_count >= 2);
+  }
+  document.getElementById('result-count').textContent = data.length;
+  document.getElementById('result-note').textContent = currentSort === 'freshness'
+    ? `新鲜度排序：先显示已查到投放的产品，最长投放天数${currentDirection === 'asc' ? '越短越靠前' : '越长越靠前'}；未返回天数的已查到组排在有天数组之后，未查到投放的产品固定置底。`
+    : '已查到投放与未查到投放分区展示；未查到投放的产品固定置底。';
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+  if (!data.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const found = data.filter(r => r.found);
+  const notFound = data.filter(r => !r.found);
+  if (currentSort === 'freshness') {
+    found.sort((a, b) => freshnessCompare(a, b, currentDirection));
+  } else {
+    found.sort((a, b) => {
+      const delta = sortValue(a, currentSort) - sortValue(b, currentSort);
+      return (currentDirection === 'asc' ? delta : -delta) || freshnessCompare(a, b);
+    });
+  }
+  // 未查到 FB 投放的组不参与当前排序，始终在独立分区置底。
+  notFound.sort((a, b) => (b.member_count || 0) - (a.member_count || 0) || String(a.clean_title || '').localeCompare(String(b.clean_title || ''), 'zh-CN'));
+  const foundCards = found.map(r => renderCard(r)).join('');
+  const notFoundCards = notFound.map(r => renderCard(r)).join('');
+  grid.innerHTML = sectionHtml('已查到 FB 投放', found.length, foundCards, 'found') +
+    (found.length && notFound.length ? '<hr class="section-divider">' : '') +
+    sectionHtml('未查到 FB 投放', notFound.length, notFoundCards, 'not-found');
+}
+
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const nextSort = btn.dataset.sort;
+    if (currentSort === nextSort) {
+      currentDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort = nextSort;
+      currentDirection = SORT_DEFAULT_DIRECTIONS[currentSort];
+    }
+    updateSortButtons();
+    render();
+  });
+});
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const f = btn.dataset.filter;
+    activeFilter = (activeFilter === f) ? null : f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === activeFilter));
+    render();
+  });
+});
+
+updateSortButtons();
+render();
+</script>
+</body>
+</html>
