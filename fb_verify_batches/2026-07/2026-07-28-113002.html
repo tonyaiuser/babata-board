@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>本轮 FB 确认产品（10）</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root { --ink:#111827; --muted:#64748b; --line:#e5e7eb; --paper:#fff; --page:#f3f4f6; --blue:#2563eb; --blue-soft:#dbeafe; --green:#047857; --green-soft:#ecfdf5; --amber:#92400e; --amber-soft:#fef3c7; --slate:#475569; --radius:8px; }
+  body { margin:0; min-height:100vh; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; background:var(--page); color:var(--ink); }
+  button { font:inherit; }
+  .header { background:#17202f; color:#fff; padding:18px 24px 20px; border-bottom:1px solid #0f172a; }
+  .header-inner,.controls-inner,.main,.footer-note { max-width:1440px; margin:0 auto; }
+  .header-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1 { margin:0 0 6px; font-size:22px; line-height:1.2; font-weight:750; letter-spacing:0; }
+  .logo { margin-right:7px; }
+  .header-meta { max-width:960px; color:#cbd5e1; font-size:13px; line-height:1.55; }
+  .generated-at { color:#cbd5e1; font-size:12px; white-space:nowrap; }
+  .stats-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  .stat-pill { min-width:112px; padding:8px 11px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); border-radius:var(--radius); color:#cbd5e1; font-size:12px; }
+  .stat-pill strong { display:block; color:#fff; font-size:20px; line-height:1.1; margin-bottom:2px; }
+  .controls { position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--line); }
+  .controls-inner { padding:12px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .ctrl-group { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .ctrl-label { color:#64748b; font-size:12px; font-weight:750; margin-right:2px; }
+  .sort-btn,.filter-btn { border:1px solid #d1d5db; border-radius:var(--radius); padding:8px 10px; background:#f9fafb; color:#374151; font-size:12px; font-weight:650; white-space:nowrap; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
+  .sort-btn:hover,.filter-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .sort-btn.active,.filter-btn.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .main { padding:18px 24px 28px; }
+  .toolbar { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:12px; }
+  .section-title { color:#374151; font-size:15px; font-weight:750; }
+  .section-title .count { color:var(--blue); }
+  .section-note { margin-top:4px; color:var(--muted); font-size:12px; line-height:1.45; }
+  .result-section + .result-section { margin-top:24px; }
+  .section-heading { display:flex; align-items:center; gap:8px; margin:2px 0 10px; color:#374151; font-size:14px; font-weight:750; }
+  .section-heading .badge { margin-left:2px; }
+  .section-divider { height:1px; border:0; background:#d1d5db; margin:24px 0 16px; }
+  .grid { display:grid; grid-template-columns:1fr; gap:13px; }
+  .card { overflow:hidden; background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 1px 2px rgba(15,23,42,.05); }
+  .card.fresh-card { border-left:3px solid #10b981; }
+  .card.old-card { border-left:3px solid #cbd5e1; }
+  .card.not-found { border-left:3px solid #d1d5db; }
+  .card:hover { border-color:#cbd5e1; box-shadow:0 6px 18px rgba(15,23,42,.08); }
+  .warning-bar { padding:9px 14px; border-bottom:1px solid #fde68a; background:var(--amber-soft); color:var(--amber); font-size:12px; font-weight:700; line-height:1.45; }
+  .card-flex { display:grid; grid-template-columns:136px minmax(270px,1fr) minmax(310px,1.02fr); gap:16px; padding:14px; align-items:start; }
+  .not-found .card-flex { grid-template-columns:136px minmax(0,1fr); }
+  .p-thumb-wrap,.p-thumb-placeholder { width:136px; aspect-ratio:1; border-radius:6px; overflow:hidden; background:#eef2f7; display:flex; align-items:center; justify-content:center; }
+  .p-thumb-wrap { position:relative; text-decoration:none; }
+  .p-thumb-img { width:100%; height:100%; object-fit:cover; display:block; }
+  .p-thumb-wrap:hover::after { content:'打开单页 ↗'; position:absolute; inset:auto 6px 6px; padding:4px 5px; border-radius:5px; background:rgba(15,23,42,.78); color:#fff; font-size:10px; font-weight:700; text-align:center; }
+  .p-thumb-placeholder { color:#64748b; padding:12px; font-size:12px; line-height:1.4; text-align:center; }
+  .card-left,.card-right { min-width:0; }
+  .p-title { color:var(--ink); font-size:15px; font-weight:750; line-height:1.35; }
+  .p-raw-title { display:-webkit-box; overflow:hidden; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-top:5px; color:#64748b; font-size:11px; line-height:1.4; }
+  .p-meta-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:9px; }
+  .badge { display:inline-flex; align-items:center; border-radius:999px; padding:3px 7px; font-size:11px; font-weight:700; line-height:1.2; white-space:nowrap; }
+  .badge-on { background:var(--green-soft); color:var(--green); }
+  .badge-off,.badge-reused { background:#f3f4f6; color:#64748b; }
+  .badge-multi { background:#dbeafe; color:#1d4ed8; }
+  .badge-multi-hi { background:#2563eb; color:#fff; }
+  .badge-new { background:#e0f2fe; color:#0369a1; }
+  .badge-fresh { background:#dcfce7; color:#15803d; }
+  .date-fresh { background:#dcfce7; color:#15803d; padding:1px 5px; border-radius:4px; font-weight:700; }
+  .badge-week { background:#ecfdf5; color:#047857; }
+  .badge-neutral { background:#f3f4f6; color:#475569; }
+  .badge-old { background:#e5e7eb; color:#64748b; }
+  .domain-tag,.domain-chip,.fmt { display:inline-flex; align-items:center; border-radius:6px; padding:3px 6px; font-size:11px; font-weight:650; }
+  .domain-tag { background:#f3f4f6; color:#374151; }
+  .member-list { display:grid; gap:4px; margin-top:10px; }
+  .member-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; color:#64748b; font-size:11px; line-height:1.35; }
+  .member-row a,.ad-sub a { min-width:0; overflow:hidden; color:#2563eb; text-decoration:none; text-overflow:ellipsis; white-space:nowrap; }
+  .member-row a:hover,.ad-sub a:hover { text-decoration:underline; }
+  .small-label { margin:11px 0 5px; color:#64748b; font-size:11px; font-weight:700; }
+  .chip-wrap { display:flex; flex-wrap:wrap; gap:5px; }
+  .chip-inline { display:contents; }
+  .domain-chip { background:#eff6ff; color:#1d4ed8; }
+  .domain-chip-link { cursor:pointer; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px; transition:background .15s,color .15s; }
+  .domain-chip-link:hover { background:#dbeafe; color:#1e40af; }
+  .more-chip { display:inline-flex; align-items:center; border-radius:6px; padding:3px 6px; background:#f3f4f6; color:#475569; cursor:pointer; font-size:11px; font-weight:700; }
+  .format-row { display:flex; flex-wrap:wrap; gap:5px; }
+  .format-row .fmt { background:#f5f3ff; color:#6d28d9; }
+  .metrics-row { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); overflow:hidden; border:1px solid #e5e7eb; border-radius:7px; }
+  .metric-box { min-width:0; padding:9px 6px; border-right:1px solid #e5e7eb; text-align:center; }
+  .metric-box:last-child { border-right:0; }
+  .metric-num { overflow:hidden; color:#2563eb; font-size:20px; font-weight:800; line-height:1.15; text-overflow:ellipsis; white-space:nowrap; }
+  .metric-label { margin-top:3px; color:#64748b; font-size:10px; line-height:1.25; }
+  .freshness-line { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; }
+  .launch-dates { margin-top:8px; color:#475569; font-size:11px; line-height:1.45; }
+  .toggle-ads-btn { margin-top:10px; border:1px solid #d1d5db; border-radius:var(--radius); padding:8px 10px; background:#fff; color:#374151; cursor:pointer; font-size:12px; font-weight:750; }
+  .toggle-ads-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .ads-panel { display:none; margin-top:10px; border-top:1px dashed #d1d5db; padding-top:8px; }
+  .ads-panel.open { display:block; }
+  .ad-item { display:flex; gap:9px; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:11px; }
+  .ad-item:last-child { border-bottom:0; }
+  .ad-thumb,.ad-thumb-placeholder { width:52px; height:52px; flex:0 0 52px; border-radius:6px; background:#eef2f7; object-fit:cover; }
+  .ad-thumb-placeholder { display:flex; align-items:center; justify-content:center; color:#64748b; font-size:16px; }
+  .ad-advertiser { color:var(--ink); font-weight:750; }
+  .ad-body-text { display:-webkit-box; overflow:hidden; margin-top:2px; color:#475569; line-height:1.4; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .ad-sub { margin-top:3px; color:#64748b; font-size:10px; line-height:1.35; }
+  .ad-active { color:#047857; font-weight:700; } .ad-inactive { color:#64748b; }
+  .not-found-box { margin-top:12px; border:1px solid #e5e7eb; border-radius:7px; padding:11px 12px; background:#f9fafb; color:#475569; font-size:12px; line-height:1.5; }
+  .not-found-box .nf-title { margin-bottom:4px; color:#374151; font-weight:750; }
+  .not-found-box .nf-note { margin-top:8px; border-top:1px dashed #d1d5db; padding-top:8px; color:#64748b; font-size:11px; }
+  .footer-note { padding:2px 24px 40px; color:#64748b; font-size:11px; line-height:1.75; }
+  .footer-note b { color:#475569; }
+  .empty { padding:50px 20px; border:1px solid var(--line); border-radius:var(--radius); background:#fff; color:#64748b; text-align:center; }
+  @media (max-width:920px) {
+    .card-flex,.not-found .card-flex { grid-template-columns:120px minmax(0,1fr); }
+    .card-right { grid-column:1 / -1; }
+    .p-thumb-wrap,.p-thumb-placeholder { width:120px; }
+  }
+  @media (max-width:700px) {
+    .header,.main,.controls-inner,.footer-note { padding-left:14px; padding-right:14px; }
+    .metrics-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .metric-box:nth-child(2) { border-right:0; }
+    .metric-box:nth-child(-n+2) { border-bottom:1px solid #e5e7eb; }
+  }
+  @media (max-width:600px) {
+    h1 { font-size:18px; }
+    .header { padding-top:14px; padding-bottom:16px; }
+    .header-meta { font-size:12px; }
+    .generated-at { white-space:normal; }
+    .stats-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px; }
+    .stat-pill { min-width:0; padding:7px 9px; font-size:11px; }
+    .stat-pill strong { font-size:18px; }
+    .controls-inner { display:flex; align-items:stretch; gap:8px; padding-top:9px; padding-bottom:9px; }
+    .ctrl-group { width:100%; flex:0 0 100%; flex-wrap:nowrap; gap:6px; overflow-x:auto; overscroll-behavior-x:contain; padding:1px 1px 3px; -webkit-overflow-scrolling:touch; }
+    .ctrl-label { flex:0 0 auto; }
+    .sort-btn,.filter-btn { min-height:36px; flex:0 0 auto; padding:7px 10px; touch-action:manipulation; }
+    .main { padding-top:14px; padding-bottom:22px; }
+    .toolbar { margin-bottom:10px; }
+    .section-title { font-size:14px; }
+    .section-note { font-size:11px; }
+    .section-heading { margin-bottom:8px; font-size:13px; }
+    .grid { grid-template-columns:minmax(0,1fr); gap:10px; }
+    .card-flex,.not-found .card-flex { grid-template-columns:88px minmax(0,1fr); gap:10px; padding:10px; }
+    .p-thumb-wrap,.p-thumb-placeholder { width:88px; aspect-ratio:1; }
+    .p-thumb-wrap { min-height:88px; touch-action:manipulation; }
+    .p-thumb-placeholder { padding:8px; font-size:11px; }
+    .p-title { font-size:14px; line-height:1.3; }
+    .p-raw-title { margin-top:4px; font-size:10px; line-height:1.35; }
+    .p-meta-row { gap:5px; margin-top:7px; }
+    .badge { padding:3px 6px; font-size:10px; }
+    .member-list { gap:2px; margin-top:7px; }
+    .member-row { gap:5px; font-size:10px; }
+    .member-row a { display:inline-flex; align-items:center; min-height:32px; padding:4px 0; touch-action:manipulation; }
+    .small-label { margin:8px 0 4px; font-size:10px; }
+    .chip-wrap,.format-row { gap:6px; }
+    .domain-tag,.domain-chip,.fmt { font-size:10px; }
+    .domain-chip-link,.more-chip { min-height:32px; padding:5px 8px; touch-action:manipulation; }
+    .more-chip { font-size:10px; }
+    .card-right { grid-column:1 / -1; }
+    .metrics-row { border-radius:6px; }
+    .metric-box { padding:6px 5px; }
+    .metric-num { font-size:17px; }
+    .metric-label { margin-top:2px; font-size:9px; line-height:1.2; }
+    .freshness-line { gap:6px; margin-top:8px; }
+    .toggle-ads-btn { min-height:36px; margin-top:8px; padding:7px 10px; font-size:11px; touch-action:manipulation; }
+    .warning-bar { padding:8px 10px; font-size:11px; }
+    .not-found-box { margin-top:8px; padding:9px 10px; font-size:11px; }
+    .footer-note { padding-top:0; padding-bottom:28px; font-size:10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div>
+        <h1><span class="logo">📣</span>本轮 FB 确认产品（10）</h1>
+        <div class="header-meta">
+          本次增量验证确认有相关投放的产品；产品图可直接打开来源单页。
+        </div>
+      </div>
+      <div class="generated-at">生成时间：2026-07-28T03:37:03.093Z</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-pill"><strong>10</strong>产品组</div>
+      <div class="stat-pill"><strong>10</strong>查到 FB 投放</div>
+      <div class="stat-pill"><strong>0</strong>本周新投（≤7 天）</div>
+      <div class="stat-pill"><strong>7</strong>多站跨投（≥3 站）</div>
+      <div class="stat-pill"><strong>3</strong>多监控站跟品</div>
+      <div class="stat-pill"><strong>0</strong>未查到 FB 投放</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="controls-inner">
+    <div class="ctrl-group">
+      <span class="ctrl-label">排序：</span>
+      <button class="sort-btn active" data-sort="freshness" data-label="新鲜度">新鲜度 ↑</button>
+      <button class="sort-btn" data-sort="cross" data-label="跨站数">跨站数 ↓</button>
+      <button class="sort-btn" data-sort="fbtotal" data-label="FB总匹配">FB总匹配 ↓</button>
+      <button class="sort-btn" data-sort="monitor" data-label="监控站跟品数">监控站跟品数 ↓</button>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">筛选：</span>
+      <button class="filter-btn" data-filter="multi">仅看多站跨投(≥3站)</button>
+      <button class="filter-btn" data-filter="monitor2">仅看多监控站跟品(≥2站)</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="toolbar">
+    <div>
+      <div class="section-title">本轮确认产品 <span class="count" id="result-count">10</span></div>
+      <div class="section-note" id="result-note">新鲜度排序：先显示已查到投放的产品，最长投放天数越短越靠前。</div>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none;">当前筛选条件下暂无产品</div>
+</div>
+
+<div class="footer-note">
+  <b>数据局限：</b>
+  ① 广告样本为 Facebook 广告库第一页查询结果，单次查询最多 ≤30 条，非全量投放数据；
+  ② "FB总匹配"为 Facebook 广告库接口返回的报告值（fb_total_reported），可能包含降噪前的宽泛匹配；
+  ③ "跨站投放站点数"基于抓取到的样本去重统计，实际跨站数量可能更多；
+  ④ 部分广告链接、图片素材可能已过期或被 Facebook 广告库清理，缩略图为 FB CDN 热链，若显示失败为链接过期，不代表数据有误；
+  ⑤ "监控站跟品数"来自 spspy 单页监控本月同款产品跨站分组（duplicate_groups.json），分组外按归一化标题二次合并，可能仍有少量漏并/误并。
+</div>
+
+<script>
+const RECORDS = [{"group_id": "G0528", "source": "daily_new", "clean_title": "2-in-1 Foldable Shopping Cart", "raw_title": "2-in-1 Foldable Shopping Cart", "image_url": "https://cdn.shopify.com/s/files/1/0665/8899/9906/files/lifestyle-ad-creative.png?v=1784290538", "members": [{"domain": "kingwwy.com", "handle": "faltbarer", "url": "https://kingwwy.com/products/faltbarer", "created_at": "2026-07-17", "title": "2-in-1 Foldable Shopping Cart"}, {"domain": "choosemuc.com", "handle": "faltbarer", "url": "https://choosemuc.com/products/faltbarer", "created_at": "2026-07-18", "title": "📢📢50% OFF !! ⏰2-in-1 Foldable Shopping Cart"}, {"domain": "chic-lucky.com", "handle": "easy-shopping", "url": "https://chic-lucky.com/products/easy-shopping", "created_at": "2026-07-20", "title": "⏳LAST DAY SALE ONLY ￡7.99!!🔥2-in-1 Foldable Shopping Cart🛒"}, {"domain": "poinnte.com", "handle": "foldable-shopping-cart", "url": "https://poinnte.com/products/foldable-shopping-cart", "created_at": "2026-07-21", "title": "⏳LAST DAY SALE ONLY ￡7.99!!🔥2-in-1 Foldable Shopping Cart🛒"}], "member_count": 4, "found": true, "verify_error": null, "reused": false, "cross_domains": ["kingwwy.com", "kariney.com", "londonnk.com", "shimmer07.com", "sumreosy.com", "mytrendyes.com", "aurora07.com", "sunny-bee.com", "chic-lucky.com", "copenrain.com", "choosemuc.com", "knownyo.com", "brothertitchs.com", "charmcire.com", "www.enjoyaitlife.com", "holdonmy.com"], "cross_site_links": {"kingwwy.com": "https://kingwwy.com/products/faltbarer", "kariney.com": "https://kariney.com/products/faltbarer", "londonnk.com": "https://londonnk.com/products/foldable-bag", "shimmer07.com": "https://shimmer07.com/products/foldable-bag", "sumreosy.com": "https://sumreosy.com/products/faltbarer", "mytrendyes.com": "https://mytrendyes.com/products/2-in-1-foldable-shopping-cart?utm_campaign=%7B%7Bcampaign.name%7D%7D", "aurora07.com": "https://aurora07.com/products/faltbarer-1", "sunny-bee.com": "https://sunny-bee.com/products/foldable-bag", "chic-lucky.com": "https://chic-lucky.com/products/easy-shopping", "copenrain.com": "https://copenrain.com/products/unive22", "choosemuc.com": "https://choosemuc.com/products/faltbarer", "knownyo.com": "https://knownyo.com/products/easy-shopping", "brothertitchs.com": "https://brothertitchs.com/products/faltbarer", "charmcire.com": "https://charmcire.com/products/easy-shopping", "www.enjoyaitlife.com": "https://www.enjoyaitlife.com/products/enjoy-foldaitlifeshopping-cart", "holdonmy.com": "https://holdonmy.com/products/2hsoba"}, "cross_count": 16, "fb_total": 830, "relevant_count": 29, "max_run_days": 11, "first_start_date": "2026-07-17", "latest_start_date": "2026-07-26", "own_hit": true, "formats": {"VIDEO": 28, "DPA": 1}, "ad_samples": [{"advertiser": "Kingwwy shop", "landing_domain": "kingwwy.com", "body_short": "🛒♻️ One bag, two ways – carry it or wheel it!\nOur 2‑in‑1 Foldable Shopping Cart expands to 23L capacity, folds flat for ", "start_date": 1784271600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2106514460078516", "image_url": null}, {"advertiser": "Kingwwy shop", "landing_domain": "kingwwy.com", "body_short": "🛒♻️ One bag, two ways – carry it or wheel it!\nOur 2‑in‑1 Foldable Shopping Cart expands to 23L capacity, folds flat for ", "start_date": 1784358000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1545836977335022", "image_url": null}, {"advertiser": "Kariney shop", "landing_domain": "kariney.com", "body_short": "🛒 The trolley that fits in your handbag – until you need it.\n\nThen it turns into a full‑size shopping cart in 2 seconds ", "start_date": 1784358000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1715906526292371", "image_url": null}, {"advertiser": "London NK", "landing_domain": "londonnk.com", "body_short": "🛒♻️ One bag, two ways – carry it or wheel it!\nOur 2‑in‑1 Foldable Shopping Cart expands to 23L capacity, folds flat for ", "start_date": 1784444400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1553207696465362", "image_url": null}, {"advertiser": "Shimmer07 UK", "landing_domain": "shimmer07.com", "body_short": "🛒 The trolley that fits in your handbag – until you need it.\n\nThen it becomes a full-size shopping cart in 2 seconds fla", "start_date": 1784358000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1319618576921800", "image_url": null}, {"advertiser": "Sumreosy", "landing_domain": "sumreosy.com", "body_short": "Tired of heavy grocery totes digging into your palms or clunky shopping carts that are hard to move around? 🙅‍♀️\nSay goo", "start_date": 1784790000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1084874924215715", "image_url": null}], "note": null, "warning": null, "query": "2-in-1 Foldable Shopping Cart"}, {"group_id": "G0573", "source": "daily_new", "clean_title": "Foldable 2-in-1 Shopping Bag", "raw_title": "🔥HOT SALE 50% OFF🔥Foldable 2-in-1 Shopping Bag", "image_url": "http://londonnk.com/cdn/shop/files/lifestyle-ad-creative_23.png?v=1784389013", "members": [{"domain": "londonnk.com", "handle": "foldable-bag", "url": "https://londonnk.com/products/foldable-bag", "created_at": "2026-07-18", "title": "🔥HOT SALE 50% OFF🔥Foldable 2-in-1 Shopping Bag"}, {"domain": "shimmer07.com", "handle": "foldable-bag", "url": "https://shimmer07.com/products/foldable-bag", "created_at": "2026-07-18", "title": "🔥HOT SALE 50% OFF🔥Foldable 2-in-1 Shopping Bag"}], "member_count": 2, "found": true, "verify_error": null, "reused": false, "cross_domains": ["kariney.com", "shimmer07.com", "rioiocity.com", "callbacke.com", "seattleget.com", "yourivo.com", "www.feastfete.com", "rrighodew.com"], "cross_site_links": {"kariney.com": "https://kariney.com/products/faltbarer", "shimmer07.com": "https://shimmer07.com/products/foldable-bag", "rioiocity.com": "https://rioiocity.com/products/bag2", "callbacke.com": "https://callbacke.com/products/faltbarer1145", "seattleget.com": "https://seattleget.com/products/foldable-bag", "yourivo.com": "https://yourivo.com/products/faltbarer", "www.feastfete.com": "https://www.feastfete.com/products/foldable-2-in-1-shopping-bag", "rrighodew.com": "https://rrighodew.com/products/faltbarer?utm_campaign=%7B%7Bcampaign.name%7D%7D"}, "cross_count": 8, "fb_total": 140, "relevant_count": 27, "max_run_days": 11, "first_start_date": "2026-07-17", "latest_start_date": "2026-07-27", "own_hit": true, "formats": {"VIDEO": 27}, "ad_samples": [{"advertiser": "Kariney shop", "landing_domain": "kariney.com", "body_short": "🛒 The trolley that fits in your handbag – until you need it.\n\nThen it turns into a full‑size shopping cart in 2 seconds ", "start_date": 1784358000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1715906526292371", "image_url": null}, {"advertiser": "Kariney shop", "landing_domain": "kariney.com", "body_short": "🛒 The trolley that fits in your handbag – until you need it.\n\nThen it turns into a full‑size shopping cart in 2 seconds ", "start_date": 1784444400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2412266362517333", "image_url": null}, {"advertiser": "Shimmer07 UK", "landing_domain": "shimmer07.com", "body_short": "🛒 The trolley that fits in your handbag – until you need it.\n\nThen it becomes a full-size shopping cart in 2 seconds fla", "start_date": 1784358000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1319618576921800", "image_url": null}, {"advertiser": "Shimmer07 UK", "landing_domain": "shimmer07.com", "body_short": "🛒 The trolley that fits in your handbag – until you need it.\n\nThen it becomes a full-size shopping cart in 2 seconds fla", "start_date": 1784876400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=845432158505942", "image_url": null}, {"advertiser": "Kariney shop", "landing_domain": "kariney.com", "body_short": "🛒 The trolley that fits in your handbag – until you need it.\n\nThen it turns into a full‑size shopping cart in 2 seconds ", "start_date": 1784444400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=840797618971237", "image_url": null}, {"advertiser": "Kariney shop", "landing_domain": "kariney.com", "body_short": "🛒 The trolley that fits in your handbag – until you need it.\n\nThen it turns into a full‑size shopping cart in 2 seconds ", "start_date": 1784358000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1548921460066428", "image_url": null}], "note": null, "warning": null, "query": "Foldable 2-in-1 Shopping Bag"}, {"group_id": "G0571", "source": "daily_new", "clean_title": "Multifunctional Foot & Leg Stretching Strap - Training & Rehabilitation", "raw_title": "Multifunctional Foot & Leg Stretching Strap - Training & Rehabilitation", "image_url": "https://cdn.shopify.com/s/files/1/0766/3756/9282/files/spp_shopify20260715101215_18c6c6524f26ae4b01459a6e713865bb_6578c968-0f35-4d7b-a1a3-eb3987320217.jpg?v=1784081569", "members": [{"domain": "moonbeamt.com", "handle": "multifunctional-foot-leg-stretching-strap-training-rehabilitation", "url": "https://moonbeamt.com/products/multifunctional-foot-leg-stretching-strap-training-rehabilitation", "created_at": "2026-07-15", "title": "Multifunctional Foot & Leg Stretching Strap - Training & Rehabilitation"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["choosemuc.com"], "cross_site_links": {"choosemuc.com": "https://choosemuc.com/products/multifunctional-foot-leg-stretching-strap-training-rehabilitation"}, "cross_count": 1, "fb_total": null, "relevant_count": 1, "max_run_days": 11, "first_start_date": "2026-07-17", "latest_start_date": "2026-07-17", "own_hit": false, "formats": {"VIDEO": 1}, "ad_samples": [{"advertiser": "Choosemuc Choose", "landing_domain": "choosemuc.com", "body_short": "Feel that tightness in your heels? Morning foot pain? Cramps that wake you up?\nThis strap lets you stretch every muscle ", "start_date": 1784271600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1787875385673521", "image_url": null}], "note": null, "warning": null, "query": "Multifunctional Foot & Leg Stretching Strap"}, {"group_id": "G0524", "source": "daily_new", "clean_title": "⏱ Portable Watch Strap Hole Punch Plier – Over 19,000 Precision needle, ergonomic grip & rust‑proof. Adjust straps perfectly at home", "raw_title": "🥳2026 HOT SALE🥳💞50K+ SOLD!⏱️🔧 50% OFF! Portable Watch Strap Hole Punch Plier – Over 19,000 sold! Precision needle, ergonomic grip & rust‑proof. Adjust straps perfectly at home! 🛠️✨", "image_url": "https://cdn.shopify.com/s/files/1/0657/9303/2497/files/spp_shopify20260430105301_5c13ba9bc9f34593f99edcd8c5a086b3_40054b7d-47d0-415e-85e1-b734632c611f.jpg?v=1784212389", "members": [{"domain": "betifull.com", "handle": "portable-watch-st", "url": "https://betifull.com/products/portable-watch-st", "created_at": "2026-07-16", "title": "🥳2026 HOT SALE🥳💞50K+ SOLD!⏱️🔧 50% OFF! Portable Watch Strap Hole Punch Plier – Over 19,000 sold! Precision needle, ergonomic grip & rust‑proof. Adjust straps perfectly at home! 🛠️✨"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["betifull.com", "londonget.com", "dailyardmall.com", "cyrarise.com", "loribeaut.com", "dailyard.co.uk", "melbob.com"], "cross_site_links": {"betifull.com": "https://betifull.com/products/portable-watch-st", "londonget.com": "https://londonget.com/products/portable-watch-st", "dailyardmall.com": "https://dailyardmall.com/products/portable-watch-st", "cyrarise.com": "https://cyrarise.com/products/portable-watch-st?utm_source=FB&utm_campaign=HWC-%7B%7Bcampaign.name%7D%7D&utm_id=FB", "loribeaut.com": "https://loribeaut.com/products/portable-watch-st", "dailyard.co.uk": "https://dailyard.co.uk/products/portable-watch-st", "melbob.com": "https://melbob.com/products/portable-watch-st"}, "cross_count": 7, "fb_total": 9, "relevant_count": 9, "max_run_days": 12, "first_start_date": "2026-07-16", "latest_start_date": "2026-07-27", "own_hit": true, "formats": {"VIDEO": 9}, "ad_samples": [{"advertiser": "Betifull shop", "landing_domain": "betifull.com", "body_short": "You know that feeling — you've just bought a new watch, and the strap is just that bit too long. It slides around your w", "start_date": 1784185200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1753786449369822", "image_url": null}, {"advertiser": "Londonget gift", "landing_domain": "londonget.com", "body_short": "**YOUR WATCH STRAP IS TOO TIGHT. YOUR BELT DOESN'T FIT. YOUR WALLET IS CRYING.** 😱⌚\n\n**INTRODUCING: Portable Watch Strap", "start_date": 1784530800, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=995775069889102", "image_url": null}, {"advertiser": "Dailyardmall.us", "landing_domain": "dailyardmall.com", "body_short": "⌚Portable hole punch plier for watch straps and belts. High-hardness needle creates clean holes without fraying. Ergonom", "start_date": 1784790000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2072064890361916", "image_url": null}, {"advertiser": "Cyrarise.us", "landing_domain": "cyrarise.com", "body_short": "📿 Welcome Beaded Bracelets – Building Classroom Connections, Spreading Kindness, Creating Wonderful Memories\n\nFeeling ne", "start_date": 1784962800, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1038390915554748", "image_url": null}, {"advertiser": "Loribeaut.H", "landing_domain": "loribeaut.com", "body_short": "⌚Portable hole punch plier for watch straps and belts. High-hardness needle creates clean holes without fraying. Ergonom", "start_date": 1785135600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1981241852577035", "image_url": null}, {"advertiser": "Dailyard.co.uk", "landing_domain": "dailyard.co.uk", "body_short": "⌚Portable hole punch plier for watch straps and belts. High-hardness needle creates clean holes without fraying. Ergonom", "start_date": 1785135600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=4461380947469250", "image_url": null}], "note": null, "warning": null, "query": "Portable Watch Strap Hole Punch Plier"}, {"group_id": "G0527", "source": "daily_new", "clean_title": "Fitness Resistance Band for Stretching and Yoga", "raw_title": "Fitness Resistance Band for Stretching and Yoga", "image_url": "https://cdn.shopify.com/s/files/1/0709/0955/9008/files/spp_shopify20260102205315_0d3d2605bdb238e52ba2701b854b6923_90b03337-f1c4-4762-9954-d7afe7f7f4cf.jpg?v=1767358441", "members": [{"domain": "bueaew.com", "handle": "fitness-resistance-band-for-stretching-and-yoga", "url": "https://bueaew.com/products/fitness-resistance-band-for-stretching-and-yoga", "created_at": "2026-01-02", "title": "Fitness Resistance Band for Stretching and Yoga"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["www.britiyaituk.com", "sworios.com", "www.brilflux.com", "www.pagemindvibe.com", "www.wordmindglow.com"], "cross_site_links": {"www.britiyaituk.com": "https://www.britiyaituk.com/products/fitness-resistance-band-for-stretching-and-yoga-7-2-3-2-3", "sworios.com": "https://sworios.com/products/fitness-resistance-band-for-stretching-and-yoga", "www.brilflux.com": "https://www.brilflux.com/products/fitness-resistance-band-for-stretching-and-yoga-7-2-3-2-3-1", "www.pagemindvibe.com": "https://www.pagemindvibe.com/products/fitness-resistance-band-for-stretching-and-yoga-7-2-3-2-3-1", "www.wordmindglow.com": "https://www.wordmindglow.com/products/fitness-resistance-band-for-stretching-and-yoga-7-2-3-2-3-8"}, "cross_count": 5, "fb_total": 66, "relevant_count": 30, "max_run_days": 12, "first_start_date": "2026-07-16", "latest_start_date": "2026-07-27", "own_hit": false, "formats": {"VIDEO": 30}, "ad_samples": [{"advertiser": "Britainuk-L", "landing_domain": "www.britiyaituk.com", "body_short": "From shaky steps to steady walking 🚶‍♂️ — just 5 minutes a day ⏱️. Weak legs aren’t the problem ❌. Weak glutes are 🍑.", "start_date": 1784185200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=986850264354457", "image_url": null}, {"advertiser": "Sworios gift", "landing_domain": "sworios.com", "body_short": "Szeretné rugalmasságot és erőt építeni? 💪 Ez az ellenállásszalag 8 állítható szegmenssel testre szabható ellenállást kín", "start_date": 1785049200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=3309205352582428", "image_url": null}, {"advertiser": "Smoothingout.op", "landing_domain": "www.brilflux.com", "body_short": "From shaky steps to steady walking 🚶‍♂️ — just 5 minutes a day ⏱️. Weak legs aren’t the problem ❌. Weak glutes are 🍑.", "start_date": 1784876400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1008171921849625", "image_url": null}, {"advertiser": "Smoothingout.op", "landing_domain": "www.brilflux.com", "body_short": "From shaky steps to steady walking 🚶‍♂️ — just 5 minutes a day ⏱️. Weak legs aren’t the problem ❌. Weak glutes are 🍑.", "start_date": 1784790000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=4527997117519036", "image_url": null}, {"advertiser": "Atmospherei.HE04", "landing_domain": "www.pagemindvibe.com", "body_short": "From shaky steps to steady walking 🚶‍♂️ — just 5 minutes a day ⏱️. Weak legs aren’t the problem ❌. Weak glutes are 🍑.", "start_date": 1784876400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1337993457981398", "image_url": null}, {"advertiser": "Atmospherei.AT01", "landing_domain": "www.pagemindvibe.com", "body_short": "From shaky steps to steady walking 🚶‍♂️ — just 5 minutes a day ⏱️. Weak legs aren’t the problem ❌. Weak glutes are 🍑.", "start_date": 1785049200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1805824247494626", "image_url": null}], "note": null, "warning": null, "query": "Fitness Resistance Band for Stretching"}, {"group_id": "G0529", "source": "daily_new", "clean_title": "⏰ NOW Fast Shipping Kids' Indoor Basketball Arcade Game with 4 Balls", "raw_title": "⏰49% OFF NOW!⛹️Fast Shipping 🚚💨Kids' Indoor Basketball Arcade Game with 4 Balls🏀", "image_url": "https://cdn.shopify.com/s/files/1/0877/3284/6913/files/spp_shopify20260317182712_ced97c52bc5c3c4f9d6bee47d1b0b182_38504657-87c5-469a-9b2e-b64d03381ccb.jpg?v=1784254950", "members": [{"domain": "norlyshion.com", "handle": "arca-balls-ns", "url": "https://norlyshion.com/products/arca-balls-ns", "created_at": "2026-07-17", "title": "⏰49% OFF NOW!⛹️Fast Shipping 🚚💨Kids' Indoor Basketball Arcade Game with 4 Balls🏀"}, {"domain": "forubom.com", "handle": "kid-indoor-basketb", "url": "https://forubom.com/products/kid-indoor-basketb", "created_at": "2026-07-20", "title": "⏰50% OFF NOW!⛹️Fast Shipping 🚚💨Kids' Indoor Basketball Arcade Game with 4 Balls🏀"}, {"domain": "kariney.com", "handle": "kid-indoor-basketball-arcade-game-with-balls", "url": "https://kariney.com/products/kid-indoor-basketball-arcade-game-with-balls", "created_at": "2026-07-18", "title": "⏰50% OFF NOW!⛹️Fast Shipping 🚚💨Kids' Indoor Basketball Arcade Game with 4 Balls🏀"}, {"domain": "loungon.com", "handle": "basketball-arcade", "url": "https://loungon.com/products/basketball-arcade", "created_at": "2026-07-17", "title": "⏰50% OFF NOW!⛹️Fast Shipping 🚚💨Kids' Indoor Basketball Arcade Game with 4 Balls🏀"}, {"domain": "shimmer07.com", "handle": "kid-indoor-basketball-arcade-game-with-balls", "url": "https://shimmer07.com/products/kid-indoor-basketball-arcade-game-with-balls", "created_at": "2026-07-17", "title": "⏰50% OFF NOW!⛹️Fast Shipping 🚚💨Kids' Indoor Basketball Arcade Game with 4 Balls🏀"}], "member_count": 5, "found": true, "verify_error": null, "reused": false, "cross_domains": ["choosemuc.com", "www.priorwith.com"], "cross_site_links": {"choosemuc.com": "https://choosemuc.com/products/kid-indoor-basketball-arcade-game-with-balls", "www.priorwith.com": "https://www.priorwith.com/products/kid-indoor-basketball-arcade-game-with-balls-2"}, "cross_count": 2, "fb_total": 2, "relevant_count": 2, "max_run_days": 12, "first_start_date": "2026-07-16", "latest_start_date": "2026-07-27", "own_hit": false, "formats": {"VIDEO": 2}, "ad_samples": [{"advertiser": "Choosemuc Choose", "landing_domain": "choosemuc.com", "body_short": "Tired of screens? Get your kids moving, sweating, and laughing NON-STOP with our Indoor Basketball Arcade Game! 🏀\n✅ 4 ba", "start_date": 1784185200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1302674248694669", "image_url": null}, {"advertiser": "Priorwith-F", "landing_domain": "www.priorwith.com", "body_short": "Keep the kids active and entertained for hours inside! 🏀🥳✨\nBring the arcade home with this Kid Indoor Basketball Arcade ", "start_date": 1785135600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1593988032290725", "image_url": null}], "note": null, "warning": null, "query": "Fast Shipping Kids' Indoor Basketball Arcade"}, {"group_id": "G0567", "source": "daily_new", "clean_title": "Leather Repair Paste – Fills scratches & scuffs, restores texture. Available in multiple colours. Save your favourite sofa", "raw_title": "🥳2026 HOT SALE🥳💞50K+ SOLD!🛋️✨ 50% OFF! Leather Repair Paste – Fills scratches & scuffs, restores texture. Available in multiple colours. Save your favourite sofa! 💺🛡️", "image_url": "https://cdn.shopify.com/s/files/1/0576/6460/2166/files/spp_shopify20260707212432_f8404ab6c5c70eaee0130c75d779ec11_6189bae0-9dee-4f3d-ba04-d80a4ca2e7e4.jpg?v=1784024212", "members": [{"domain": "newbeew.com", "handle": "leather-repair-paste", "url": "https://newbeew.com/products/leather-repair-paste", "created_at": "2026-07-14", "title": "🥳2026 HOT SALE🥳💞50K+ SOLD!🛋️✨ 50% OFF! Leather Repair Paste – Fills scratches & scuffs, restores texture. Available in multiple colours. Save your favourite sofa! 💺🛡️"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["seattleget.com", "focount.com", "rioiocity.com", "choosemuc.com", "brittrove.com", "bueaew.com", "migogila.com"], "cross_site_links": {"seattleget.com": "https://seattleget.com/products/leather-repair-paste", "focount.com": "https://focount.com/products/leather-repair-paste", "rioiocity.com": "https://rioiocity.com/products/leather-repair-paste", "choosemuc.com": "https://choosemuc.com/products/leather-repair-paste", "brittrove.com": "https://brittrove.com/products/leather-repair-paste", "bueaew.com": "https://bueaew.com/products/leather-repair-paste", "migogila.com": "https://migogila.com/leather-repair"}, "cross_count": 7, "fb_total": 38, "relevant_count": 30, "max_run_days": 20, "first_start_date": "2026-07-08", "latest_start_date": "2026-07-27", "own_hit": false, "formats": {"VIDEO": 30}, "ad_samples": [{"advertiser": "Seattleget", "landing_domain": "seattleget.com", "body_short": "It’s always a pain to see scratches and scuffs on your favourite leather sofa or handbag. This repair cream effectively ", "start_date": 1784185200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1359428529485686", "image_url": null}, {"advertiser": "Focount", "landing_domain": "focount.com", "body_short": "“Does it break your heart to see scratches and scuffs on your favourite leather sofa or handbag? This repair cream effec", "start_date": 1783494000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1090029580642192", "image_url": null}, {"advertiser": "Rioiocity store", "landing_domain": "rioiocity.com", "body_short": "Without This Repair Paste, Every Scratch and Scuff on Your Leather Will Stay a Permanent Eyesore! 🛋️✨\n\nStop covering up ", "start_date": 1784012400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1975512099835130", "image_url": null}, {"advertiser": "Choosemuc Choose", "landing_domain": "choosemuc.com", "body_short": "Stop hiding your favourite sofa under blankets!\nLeather Repair Paste – ERASES scratches, scuffs, cracks & fading in MINU", "start_date": 1783494000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1792821288804562", "image_url": null}, {"advertiser": "Choosemuc Choose", "landing_domain": "choosemuc.com", "body_short": "Stop hiding your favourite sofa under blankets!\nLeather Repair Paste – ERASES scratches, scuffs, cracks & fading in MINU", "start_date": 1784012400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1743748686824368", "image_url": null}, {"advertiser": "Rioiocity store", "landing_domain": "rioiocity.com", "body_short": "Without This Repair Paste, Every Scratch and Scuff on Your Leather Will Stay a Permanent Eyesore! 🛋️✨\n\nStop covering up ", "start_date": 1784271600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1005977265554197", "image_url": null}], "note": null, "warning": null, "query": "Leather Repair Paste – Fills scratches"}, {"group_id": "G0572", "source": "daily_new", "clean_title": "⏰ -Buy 1 Get 1 Free Cold Sweat Towel You Can Use Anywhere, Anytime Reusable Soft Absorbent Cooling Portable", "raw_title": "⏰50% OFF-Buy 1 Get 1 Free❄💦Cold Sweat Towel You Can Use Anywhere, Anytime! Reusable Soft Absorbent Cooling Portable– 🇬🇧", "image_url": "https://cdn.shopify.com/s/files/1/0671/3301/4275/files/01_8e488bff-935c-46f8-b2f1-89cec4b18778.jpg?v=1784687122", "members": [{"domain": "choosemuc.com", "handle": "cold-towel-2", "url": "https://choosemuc.com/products/cold-towel-2", "created_at": "2026-07-21", "title": "⏰50% OFF-Buy 1 Get 1 Free❄💦Cold Sweat Towel You Can Use Anywhere, Anytime! Reusable Soft Absorbent Cooling Portable– 🇬🇧"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["stardusst.com", "www.portsntwenm.com", "www.novevio.com"], "cross_site_links": {"stardusst.com": "https://stardusst.com/products/cooltowel-bottle-2", "www.portsntwenm.com": "https://www.portsntwenm.com/products/cold-sweat-towel-1", "www.novevio.com": "https://www.novevio.com/products/cooltowel-bottle-2-4"}, "cross_count": 3, "fb_total": 360, "relevant_count": 28, "max_run_days": 25, "first_start_date": "2026-07-03", "latest_start_date": "2026-07-25", "own_hit": false, "formats": {"VIDEO": 28}, "ad_samples": [{"advertiser": "Stardusst", "landing_domain": "stardusst.com", "body_short": "👍It's your summer savior!!❄️\n💦Get it wet, wring it out, and it's like magic—ice cold for 12 hours, 20 degrees below room", "start_date": 1783753200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=882986327724324", "image_url": null}, {"advertiser": "Stardusst", "landing_domain": "stardusst.com", "body_short": "👍It's your summer savior!!❄️\n💦Get it wet, wring it out, and it's like magic—ice cold for 12 hours, 20 degrees below room", "start_date": 1783062000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2123521308561943", "image_url": null}, {"advertiser": "Shamptrip-y", "landing_domain": "www.portsntwenm.com", "body_short": "🥶 Feel the instant chill! This cooling towel drops temperature 20°C below room temp and stays ice cold for 2 full ⏱️ ❄️M", "start_date": 1783580400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2258154374933871", "image_url": null}, {"advertiser": "Exeterton52", "landing_domain": "www.portsntwenm.com", "body_short": "❄️ Stay cool anywhere, anytime — instant cooling towels for workout, travel & hot days! 💪🌞", "start_date": 1783062000, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=880342508449020", "image_url": null}, {"advertiser": "Shamptrip-y", "landing_domain": "www.portsntwenm.com", "body_short": "🥶 Feel the instant chill! This cooling towel drops temperature 20°C below room temp and stays ice cold for 2 full ⏱️ ❄️M", "start_date": 1783580400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=27806812275581677", "image_url": null}, {"advertiser": "Portsmtwen=P", "landing_domain": "www.portsntwenm.com", "body_short": "❄️ Stay cool anywhere, anytime — instant cooling towels for workout, travel & hot days! 💪🌞", "start_date": 1783407600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1933944990643629", "image_url": null}], "note": null, "warning": null, "query": "Cold Sweat Towel You Can Use"}, {"group_id": "G0568", "source": "daily_new", "clean_title": "2-in-1 Portable Car Heater with 360° Rotation", "raw_title": "2-in-1 Portable Car Heater with 360° Rotation", "image_url": "http://sowhathow.com/cdn/shop/files/spp_shopify20251025171207_9e5ad1262848800c44a8a2f21ba9e454_dbd4f90b-287f-4b75-8d44-dc1a77088fb9.jpg?v=1761408617", "members": [{"domain": "sowhathow.com", "handle": "portable-car-heater-withrotation", "url": "https://sowhathow.com/products/portable-car-heater-withrotation", "created_at": "未知", "title": "2-in-1 Portable Car Heater with 360° Rotation"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["www.ancienflow.com", "www.hardpointing.com", "www.wordmindglow.com", "www.cresomall.com", "www.crispelyx.com"], "cross_site_links": {"www.ancienflow.com": "https://www.ancienflow.com/products/2-in-1-portable-car-heater-with-360-rotation-9", "www.hardpointing.com": "https://www.hardpointing.com/products/portable-electric-car-heater-fan-12v-24v-2-2", "www.wordmindglow.com": "https://www.wordmindglow.com/products/portable-electric-car-heater-fan-12v-24v-2-1", "www.cresomall.com": "https://www.cresomall.com/products/portable-electric-car-heater-fan-12v-24v-2-1", "www.crispelyx.com": "https://www.crispelyx.com/products/portable-electric-car-heater-fan-12v-24v-2"}, "cross_count": 5, "fb_total": null, "relevant_count": 6, "max_run_days": 38, "first_start_date": "2026-06-20", "latest_start_date": "2026-07-27", "own_hit": false, "formats": {"VIDEO": 6}, "ad_samples": [{"advertiser": "Ancienflow.OW09", "landing_domain": "www.ancienflow.com", "body_short": "🚗 Winter Driving Just Got Cozier – 30-Second Quick Heat!\n\n❄️ Alloy heating wire – melts frost & fog fast\n🌬️ 2-in-1 heate", "start_date": 1781938800, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1611042861021239", "image_url": null}, {"advertiser": "Hardpointing.HR02", "landing_domain": "www.hardpointing.com", "body_short": "Winter Car Life Just Leveled Up – Warmth in 30 Seconds Flat! ❄️\nNo more shivering through cold commutes or waiting for y", "start_date": 1784703600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1044532311377759", "image_url": null}, {"advertiser": "Emboadlie.mz11", "landing_domain": "www.wordmindglow.com", "body_short": "Winter Car Life Just Leveled Up – Warmth in 30 Seconds Flat! ❄️\nNo more shivering through cold commutes or waiting for y", "start_date": 1784185200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2121876211696415", "image_url": null}, {"advertiser": "Beyonddraw.BE06", "landing_domain": "www.wordmindglow.com", "body_short": "Winter Car Life Just Leveled Up – Warmth in 30 Seconds Flat! ❄️\nNo more shivering through cold commutes or waiting for y", "start_date": 1785135600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=891430887371818", "image_url": null}, {"advertiser": "Gloryboom.Y", "landing_domain": "www.cresomall.com", "body_short": "Winter Car Life Just Leveled Up – Warmth in 30 Seconds Flat! ❄️\nNo more shivering through cold commutes or waiting for y", "start_date": 1785135600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=971106635989593", "image_url": null}, {"advertiser": "Occasionalous.OU08", "landing_domain": "www.crispelyx.com", "body_short": "Winter Car Life Just Leveled Up – Warmth in 30 Seconds Flat! ❄️\nNo more shivering through cold commutes or waiting for y", "start_date": 1785135600, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1015502091400838", "image_url": null}], "note": null, "warning": null, "query": "2-in-1 Portable Car Heater with 360°"}, {"group_id": "G0531", "source": "daily_new", "clean_title": "Multifunctional fascia ring for the entire body", "raw_title": "🏆Multifunctional fascia ring for the entire body🌿👑", "image_url": "https://cdn.shopify.com/s/files/1/0658/8016/2524/files/7_1773a081-f418-4290-924b-112a946e55d5.webp?v=1765266461", "members": [{"domain": "norbbshop.com", "handle": "massager-belt", "url": "https://norbbshop.com/products/massager-belt", "created_at": "2025-12-08", "title": "🏆Multifunctional fascia ring for the entire body🌿👑"}], "member_count": 1, "found": true, "verify_error": null, "reused": false, "cross_domains": ["www.ancienflow.com", "www.flowarmth.com"], "cross_site_links": {"www.ancienflow.com": "https://www.ancienflow.com/products/multifunctional-fascia-ring-for-the-entire-body-9", "www.flowarmth.com": "https://www.flowarmth.com/products/multifunctional-fascia-ring-for-the-entire-body-3"}, "cross_count": 2, "fb_total": 76, "relevant_count": 29, "max_run_days": 46, "first_start_date": "2026-06-12", "latest_start_date": "2026-07-12", "own_hit": false, "formats": {"VIDEO": 29}, "ad_samples": [{"advertiser": "Ancienflow.CW12", "landing_domain": "www.ancienflow.com", "body_short": "🎯 Finally Slim & Pain-Free – WITHOUT Exercise? 🎯\n\nYour back hurts? Belly fat that just won’t disappear? This professiona", "start_date": 1782284400, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1514189960408169", "image_url": null}, {"advertiser": "Flowarmth.LM17", "landing_domain": "www.flowarmth.com", "body_short": "🎯 Finally Slim & Pain-Free – WITHOUT Exercise? 🎯\n\nYour back hurts? Belly fat that just won’t disappear? This professiona", "start_date": 1781593200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1767297337769208", "image_url": null}, {"advertiser": "Flowarmth.LM17", "landing_domain": "www.flowarmth.com", "body_short": "🎯 Finally Slim & Pain-Free – WITHOUT Exercise? 🎯\n\nYour back hurts? Belly fat that just won’t disappear? This professiona", "start_date": 1781593200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1008499491658712", "image_url": null}, {"advertiser": "Ancienflow.CW12", "landing_domain": "www.ancienflow.com", "body_short": "🎯 Finally Slim & Pain-Free – WITHOUT Exercise? 🎯\n\nYour back hurts? Belly fat that just won’t disappear? This professiona", "start_date": 1782802800, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=3502363263253986", "image_url": null}, {"advertiser": "Ancienflow.CW12", "landing_domain": "www.ancienflow.com", "body_short": "🎯 Finally Slim & Pain-Free – WITHOUT Exercise? 🎯\n\nYour back hurts? Belly fat that just won’t disappear? This professiona", "start_date": 1782802800, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=2529761744150490", "image_url": null}, {"advertiser": "Flowarmth.LM17", "landing_domain": "www.flowarmth.com", "body_short": "🎯 Finally Slim & Pain-Free – WITHOUT Exercise? 🎯\n\nYour back hurts? Belly fat that just won’t disappear? This professiona", "start_date": 1781593200, "is_active": true, "display_format": "VIDEO", "fb_lib_url": "https://www.facebook.com/ads/library/?id=1721872232326503", "image_url": null}], "note": null, "warning": null, "query": "Multifunctional fascia ring for the entire"}];
+const SORT_DEFAULT_DIRECTIONS = {
+  freshness: 'asc',
+  cross: 'desc',
+  fbtotal: 'desc',
+  monitor: 'desc',
+};
+
+let currentSort = 'freshness';
+let currentDirection = SORT_DEFAULT_DIRECTIONS[currentSort];
+let activeFilter = null;
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts * 1000);
+  return d.toISOString().slice(0,10);
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+function dateFreshClass(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return false;
+  const parts = dateStr.trim().split('-');
+  if (parts.length !== 3) return false;
+  const y = Number(parts[0]), mo = Number(parts[1]), da = Number(parts[2]);
+  if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(da)) return false;
+  const target = new Date(y, mo - 1, da);
+  if (isNaN(target.getTime())) return false;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
+  return diffDays >= 0 && diffDays <= 3;
+}
+
+function renderFreshDate(dateStr) {
+  const text = dateStr == null ? '' : String(dateStr);
+  const escaped = escapeHtml(text);
+  if (!text) return escaped;
+  return dateFreshClass(text) ? `<span class="date-fresh">${escaped}</span>` : escaped;
+}
+
+function renderChip(domain, links) {
+  const href = links && links[domain];
+  if (!href) return `<span class="domain-chip">${escapeHtml(domain)}</span>`;
+  return `<a class="domain-chip domain-chip-link" href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(domain)}</a>`;
+}
+
+function renderChips(domains, links) {
+  const shown = domains.slice(0, 8);
+  const rest = domains.length - shown.length;
+  const shownHtml = shown.map(d => renderChip(d, links)).join('');
+  if (rest <= 0) return shownHtml;
+  const fullJson = escapeHtml(JSON.stringify({domains, links: links || {}}));
+  return `<span class="chip-inline" data-full="${fullJson}">${shownHtml}<span class="more-chip" onclick="expandChips(this.parentElement)">+${rest} 更多</span></span>`;
+}
+
+function expandChips(wrap) {
+  const data = JSON.parse(wrap.dataset.full);
+  wrap.outerHTML = data.domains.map(d => renderChip(d, data.links)).join('');
+}
+
+function renderFormats(formats) {
+  const keys = Object.keys(formats || {});
+  if (!keys.length) return '<span style="color:var(--muted);font-size:11px;">无素材类型数据</span>';
+  return keys.map(k => `<span class="fmt">${k}×${formats[k]}</span>`).join('');
+}
+
+function renderMembers(members) {
+  return members.map(m => `<div class="member-row">
+    <span class="domain-tag">${escapeHtml(m.domain)}</span>
+    <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">打开单页 ↗</a>
+    <span>上架：${renderFreshDate(m.created_at)}</span>
+  </div>`).join('');
+}
+
+function adThumbError(img) {
+  const fallback = img.dataset.fallback;
+  if (fallback) {
+    img.removeAttribute('data-fallback');
+    img.onerror = function () { adThumbError(img); };
+    img.src = fallback;
+  } else {
+    img.outerHTML = '<div class="ad-thumb-placeholder">🎬</div>';
+  }
+}
+
+function renderAdItem(ad, productImage) {
+  let thumb;
+  if (ad.image_url) {
+    const fallbackAttr = productImage ? ` data-fallback="${escapeHtml(productImage)}"` : '';
+    thumb = `<img class="ad-thumb" src="${escapeHtml(ad.image_url)}"${fallbackAttr} alt="" loading="lazy" onerror="adThumbError(this)">`;
+  } else if (productImage) {
+    thumb = `<img class="ad-thumb" src="${escapeHtml(productImage)}" alt="" loading="lazy" onerror="adThumbError(this)">`;
+  } else {
+    thumb = `<div class="ad-thumb-placeholder">🎬</div>`;
+  }
+  const activeSpan = ad.is_active
+    ? '<span class="ad-active">● 投放中</span>'
+    : '<span class="ad-inactive">○ 已停止</span>';
+  const libLink = ad.fb_lib_url
+    ? ` · <a href="${escapeHtml(ad.fb_lib_url)}" target="_blank" rel="noopener">查看广告库原文 →</a>`
+    : '';
+  return `<div class="ad-item">
+    ${thumb}
+    <div style="flex:1;min-width:0;">
+      <div class="ad-advertiser">${escapeHtml(ad.advertiser)} <span style="color:var(--muted);font-weight:400;">→ ${escapeHtml(ad.landing_domain)}</span></div>
+      <div class="ad-body-text">${escapeHtml(ad.body_short)}${ad.body_short && ad.body_short.length >= 120 ? '…' : ''}</div>
+      <div class="ad-sub">${activeSpan} · 开始投放：${renderFreshDate(fmtDate(ad.start_date))} · ${escapeHtml(ad.display_format || '未知格式')}${libLink}</div>
+    </div>
+  </div>`;
+}
+
+function monitorBadge(r) {
+  const n = r.member_count;
+  if (n >= 3) return `<span class="badge badge-multi-hi">👥 ${n} 个监控站在做</span>`;
+  if (n >= 2) return `<span class="badge badge-multi">👥 ${n} 个监控站在做</span>`;
+  return `<span class="badge badge-off">👤 1 个监控站在做</span>`;
+}
+
+function runDays(r) {
+  const n = Number(r.max_run_days);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function freshnessBadge(r) {
+  const days = runDays(r);
+  if (days === null) return '<span class="badge badge-neutral">投放天数未返回</span>';
+  if (days <= 3) return '<span class="badge badge-fresh">🔥 新起投</span>';
+  if (days <= 7) return '<span class="badge badge-week">本周新投</span>';
+  if (days <= 30) return '<span class="badge badge-neutral">投放中</span>';
+  if (days > 90) return '<span class="badge badge-old">老品</span>';
+  return '<span class="badge badge-neutral">持续投放</span>';
+}
+
+function cardFreshnessClass(r) {
+  const days = runDays(r);
+  if (days !== null && days <= 7) return ' fresh-card';
+  if (days !== null && days > 90) return ' old-card';
+  return '';
+}
+
+function thumbHtml(r) {
+  if (!r.image_url) return '<div class="p-thumb-placeholder">未取到产品图</div>';
+  const url = r.members[0] && r.members[0].url ? r.members[0].url : '#';
+  return `<a class="p-thumb-wrap" href="${escapeHtml(url)}" target="_blank" rel="noopener"><img class="p-thumb-img" src="${escapeHtml(r.image_url)}" alt="${escapeHtml(r.clean_title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.outerHTML='<div class=\'p-thumb-placeholder\'>图片加载失败</div>'"></a>`;
+}
+
+function renderCard(r) {
+  const warningHtml = r.warning ? `<div class="warning-bar">${escapeHtml(r.warning)}</div>` : '';
+  const reusedBadge = r.reused ? '<span class="badge badge-reused">复用今日已验证结果</span>' : (r.found || r.relevant_count !== undefined ? '<span class="badge badge-new">本轮新查询</span>' : '');
+
+  if (!r.found) {
+    const reasonLine = r.verify_error && r.verify_error.includes('尚未验证')
+      ? `<div>⏳ ${escapeHtml(r.verify_error)}</div>`
+      : `<div>查询词："${escapeHtml(r.query || '')}"，广告库返回 0 条相关匹配${r.verify_error ? '（查询出错：' + escapeHtml(r.verify_error) + '）' : ''}。</div>`;
+    return `<article class="card not-found">
+      <div class="card-flex">
+        ${thumbHtml(r)}
+        <div class="card-left">
+          <div class="p-title">${escapeHtml(r.clean_title)}</div>
+          <div class="p-raw-title">原始标题：${escapeHtml(r.raw_title)}</div>
+          <div class="p-meta-row">${monitorBadge(r)} ${reusedBadge}</div>
+          <div class="member-list">${renderMembers(r.members)}</div>
+          <div class="not-found-box" style="margin-top:10px;">
+            <div class="nf-title">❌ FB 未查到相关投放</div>
+            ${reasonLine}
+            ${r.note ? `<div class="nf-note">📝 二次核查备注：${escapeHtml(r.note)}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    </article>`;
+  }
+
+  const adsHtml = r.ad_samples.length
+    ? r.ad_samples.map(ad => renderAdItem(ad, r.image_url)).join('')
+    : '<div style="color:var(--muted);font-size:12px;">无广告样本明细</div>';
+  const launchDates = r.first_start_date
+    ? (r.latest_start_date && r.latest_start_date !== r.first_start_date
+      ? `首次起投：${renderFreshDate(r.first_start_date)} · 最近加投：${renderFreshDate(r.latest_start_date)}`
+      : `起投日期：${renderFreshDate(r.first_start_date)}`)
+    : '起投日期：未返回';
+
+  return `<article class="card${cardFreshnessClass(r)}">
+    ${warningHtml}
+    <div class="card-flex">
+      ${thumbHtml(r)}
+      <div class="card-left">
+        <div class="p-title">${escapeHtml(r.clean_title)}</div>
+        <div class="p-raw-title">原始标题：${escapeHtml(r.raw_title)}</div>
+        <div class="p-meta-row">${monitorBadge(r)} ${reusedBadge}</div>
+        <div class="member-list">${renderMembers(r.members)}</div>
+        <div>
+          <div class="small-label">跨站落地域名（${r.cross_domains.length}）</div>
+          <div class="chip-wrap">${renderChips(r.cross_domains, r.cross_site_links)}</div>
+        </div>
+        <div>
+          <div class="small-label">素材类型分布</div>
+          <div class="format-row">${renderFormats(r.formats)}</div>
+        </div>
+      </div>
+      <div class="card-right">
+        <div class="metrics-row">
+          <div class="metric-box"><div class="metric-num">${r.cross_count}</div><div class="metric-label">跨站投放站点数</div></div>
+          <div class="metric-box"><div class="metric-num">${r.fb_total ?? '—'}</div><div class="metric-label">FB总匹配</div></div>
+          <div class="metric-box"><div class="metric-num">${r.relevant_count}</div><div class="metric-label">降噪后相关条数</div></div>
+          <div class="metric-box"><div class="metric-num">${r.max_run_days ?? '—'}</div><div class="metric-label">最长投放天数</div></div>
+        </div>
+        <div class="freshness-line">
+          <div>${freshnessBadge(r)}</div>
+          <div>${r.own_hit ? '<span class="badge badge-on">✅ 本站在投</span>' : '<span class="badge badge-off">⚪ 本站未投</span>'}</div>
+        </div>
+        <div class="launch-dates">${launchDates}</div>
+        <button class="toggle-ads-btn" onclick="const p=this.nextElementSibling;p.classList.toggle('open');this.textContent=p.classList.contains('open')?'收起广告样本 ▲':'展开广告样本（最多6条）▼';">展开广告样本（最多6条）▼</button>
+        <div class="ads-panel">${adsHtml}</div>
+      </div>
+    </div>
+  </article>`;
+}
+
+function sortValue(r, key) {
+  if (key === 'cross') return r.cross_count || 0;
+  if (key === 'fbtotal') return r.fb_total || 0;
+  if (key === 'monitor') return r.member_count || 0;
+  return 0;
+}
+
+function freshnessCompare(a, b, direction = 'asc') {
+  const ad = runDays(a);
+  const bd = runDays(b);
+  // 未返回投放天数的已查到组始终排在有天数组之后，避免被误解为最新/最老投放。
+  if (ad === null && bd !== null) return 1;
+  if (ad !== null && bd === null) return -1;
+  if (ad !== null && bd !== null && ad !== bd) {
+    return direction === 'asc' ? ad - bd : bd - ad;
+  }
+  return (b.cross_count || 0) - (a.cross_count || 0) ||
+    (b.relevant_count || 0) - (a.relevant_count || 0) ||
+    String(a.clean_title || '').localeCompare(String(b.clean_title || ''), 'zh-CN');
+}
+
+function directionArrow(direction) {
+  return direction === 'asc' ? '↑' : '↓';
+}
+
+function updateSortButtons() {
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    const key = btn.dataset.sort;
+    const isActive = key === currentSort;
+    const direction = isActive ? currentDirection : SORT_DEFAULT_DIRECTIONS[key];
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+    btn.textContent = `${btn.dataset.label} ${directionArrow(direction)}`;
+  });
+}
+
+function sectionHtml(title, count, cards, kind) {
+  if (!cards.length) return '';
+  const hint = kind === 'found'
+    ? (currentSort === 'freshness'
+      ? `最长投放天数${currentDirection === 'asc' ? '由短到长' : '由长到短'}（未返回天数的组排在最后）`
+      : '已查到相关 FB 投放')
+    : '查询未命中或尚未验证，固定置于列表底部';
+  return `<section class="result-section result-${kind}">
+    <div class="section-heading">${title} <span class="badge ${kind === 'found' ? 'badge-on' : 'badge-off'}">${count} 组</span></div>
+    <div class="section-note">${hint}</div>
+    <div class="grid">${cards}</div>
+  </section>`;
+}
+
+function render() {
+  let data = RECORDS.slice();
+  if (activeFilter === 'multi') {
+    data = data.filter(r => r.found && (r.cross_count || 0) >= 3);
+  } else if (activeFilter === 'monitor2') {
+    data = data.filter(r => r.member_count >= 2);
+  }
+  document.getElementById('result-count').textContent = data.length;
+  document.getElementById('result-note').textContent = currentSort === 'freshness'
+    ? `新鲜度排序：先显示已查到投放的产品，最长投放天数${currentDirection === 'asc' ? '越短越靠前' : '越长越靠前'}；未返回天数的已查到组排在有天数组之后，未查到投放的产品固定置底。`
+    : '已查到投放与未查到投放分区展示；未查到投放的产品固定置底。';
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+  if (!data.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const found = data.filter(r => r.found);
+  const notFound = data.filter(r => !r.found);
+  if (currentSort === 'freshness') {
+    found.sort((a, b) => freshnessCompare(a, b, currentDirection));
+  } else {
+    found.sort((a, b) => {
+      const delta = sortValue(a, currentSort) - sortValue(b, currentSort);
+      return (currentDirection === 'asc' ? delta : -delta) || freshnessCompare(a, b);
+    });
+  }
+  // 未查到 FB 投放的组不参与当前排序，始终在独立分区置底。
+  notFound.sort((a, b) => (b.member_count || 0) - (a.member_count || 0) || String(a.clean_title || '').localeCompare(String(b.clean_title || ''), 'zh-CN'));
+  const foundCards = found.map(r => renderCard(r)).join('');
+  const notFoundCards = notFound.map(r => renderCard(r)).join('');
+  grid.innerHTML = sectionHtml('已查到 FB 投放', found.length, foundCards, 'found') +
+    (found.length && notFound.length ? '<hr class="section-divider">' : '') +
+    sectionHtml('未查到 FB 投放', notFound.length, notFoundCards, 'not-found');
+}
+
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const nextSort = btn.dataset.sort;
+    if (currentSort === nextSort) {
+      currentDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort = nextSort;
+      currentDirection = SORT_DEFAULT_DIRECTIONS[currentSort];
+    }
+    updateSortButtons();
+    render();
+  });
+});
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const f = btn.dataset.filter;
+    activeFilter = (activeFilter === f) ? null : f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === activeFilter));
+    render();
+  });
+});
+
+updateSortButtons();
+render();
+</script>
+</body>
+</html>
