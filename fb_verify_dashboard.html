@@ -173,7 +173,7 @@
           单页监控同款分组 × Facebook 广告库验证；默认按最长投放天数从短到长排列，优先发现刚被市场验证的新起投产品。
         </div>
       </div>
-      <div class="generated-at">生成时间：2026-08-01T14:17:24.989Z</div>
+      <div class="generated-at">生成时间：2026-08-01T16:23:56.670Z</div>
     </div>
     <div class="stats-row">
       <div class="stat-pill"><strong>0</strong>产品组</div>
@@ -237,14 +237,37 @@ let currentDirection = SORT_DEFAULT_DIRECTIONS[currentSort];
 let activeFilter = null;
 
 function fmtDate(ts) {
-  if (!ts) return '—';
-  const d = new Date(ts * 1000);
+  const numeric = finiteNumber(ts, 0);
+  if (numeric === null) return '—';
+  const d = new Date(numeric * 1000);
+  if (!Number.isFinite(d.getTime())) return '—';
   return d.toISOString().slice(0,10);
 }
 
 function escapeHtml(s) {
   if (s == null) return '';
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+function finiteNumber(value, minimum = null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  if (minimum !== null && value < minimum) return null;
+  return value;
+}
+
+function metricText(value) {
+  const numeric = finiteNumber(value, 0);
+  return numeric === null ? '—' : escapeHtml(numeric);
+}
+
+function safeHttpUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const parsed = new URL(value.trim());
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed.href : '';
+  } catch (_) {
+    return '';
+  }
 }
 
 function dateFreshClass(dateStr) {
@@ -269,9 +292,9 @@ function renderFreshDate(dateStr) {
 }
 
 function renderChip(domain, links) {
-  const href = links && links[domain];
+  const href = safeHttpUrl(links && links[domain]);
   if (!href) return `<span class="domain-chip">${escapeHtml(domain)}</span>`;
-  return `<a class="domain-chip domain-chip-link" href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(domain)}</a>`;
+  return `<a class="domain-chip domain-chip-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(domain)}</a>`;
 }
 
 function renderChips(domains, links) {
@@ -280,7 +303,7 @@ function renderChips(domains, links) {
   const shownHtml = shown.map(d => renderChip(d, links)).join('');
   if (rest <= 0) return shownHtml;
   const fullJson = escapeHtml(JSON.stringify({domains, links: links || {}}));
-  return `<span class="chip-inline" data-full="${fullJson}">${shownHtml}<span class="more-chip" onclick="expandChips(this.parentElement)">+${rest} 更多</span></span>`;
+  return `<span class="chip-inline" data-full="${fullJson}">${shownHtml}<button type="button" class="more-chip">+${escapeHtml(rest)} 更多</button></span>`;
 }
 
 function expandChips(wrap) {
@@ -291,43 +314,63 @@ function expandChips(wrap) {
 function renderFormats(formats) {
   const keys = Object.keys(formats || {});
   if (!keys.length) return '<span style="color:var(--muted);font-size:11px;">无素材类型数据</span>';
-  return keys.map(k => `<span class="fmt">${k}×${formats[k]}</span>`).join('');
+  return keys.map(k => `<span class="fmt">${escapeHtml(k)}×${escapeHtml(formats[k])}</span>`).join('');
 }
 
 function renderMembers(members) {
-  return members.map(m => `<div class="member-row">
+  return members.map(m => {
+    const url = safeHttpUrl(m.url);
+    const link = url
+      ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">打开单页 ↗</a>`
+      : '<span>单页链接不可用</span>';
+    return `<div class="member-row">
     <span class="domain-tag">${escapeHtml(m.domain)}</span>
-    <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">打开单页 ↗</a>
+    ${link}
     <span>上架：${renderFreshDate(m.created_at)}</span>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 
 function adThumbError(img) {
-  const fallback = img.dataset.fallback;
+  const fallback = safeHttpUrl(img.dataset.fallback);
   if (fallback) {
     img.removeAttribute('data-fallback');
-    img.onerror = function () { adThumbError(img); };
     img.src = fallback;
   } else {
-    img.outerHTML = '<div class="ad-thumb-placeholder">🎬</div>';
+    const placeholder = document.createElement('div');
+    placeholder.className = img.dataset.placeholder === 'product'
+      ? 'p-thumb-placeholder'
+      : 'ad-thumb-placeholder';
+    placeholder.textContent = img.dataset.placeholder === 'product'
+      ? '图片加载失败'
+      : '🎬';
+    const parent = img.parentElement;
+    if (img.dataset.placeholder === 'product' && parent && parent.matches('a.p-thumb-wrap')) {
+      parent.replaceWith(placeholder);
+    } else {
+      img.replaceWith(placeholder);
+    }
   }
 }
 
 function renderAdItem(ad, productImage) {
   let thumb;
-  if (ad.image_url) {
-    const fallbackAttr = productImage ? ` data-fallback="${escapeHtml(productImage)}"` : '';
-    thumb = `<img class="ad-thumb" src="${escapeHtml(ad.image_url)}"${fallbackAttr} alt="" loading="lazy" onerror="adThumbError(this)">`;
-  } else if (productImage) {
-    thumb = `<img class="ad-thumb" src="${escapeHtml(productImage)}" alt="" loading="lazy" onerror="adThumbError(this)">`;
+  const adImage = safeHttpUrl(ad.image_url);
+  const fallbackImage = safeHttpUrl(productImage);
+  if (adImage) {
+    const fallbackAttr = fallbackImage ? ` data-fallback="${escapeHtml(fallbackImage)}"` : '';
+    thumb = `<img class="ad-thumb" src="${escapeHtml(adImage)}"${fallbackAttr} data-placeholder="ad" alt="" loading="lazy">`;
+  } else if (fallbackImage) {
+    thumb = `<img class="ad-thumb" src="${escapeHtml(fallbackImage)}" data-placeholder="ad" alt="" loading="lazy">`;
   } else {
     thumb = `<div class="ad-thumb-placeholder">🎬</div>`;
   }
   const activeSpan = ad.is_active
     ? '<span class="ad-active">● 投放中</span>'
     : '<span class="ad-inactive">○ 已停止</span>';
-  const libLink = ad.fb_lib_url
-    ? ` · <a href="${escapeHtml(ad.fb_lib_url)}" target="_blank" rel="noopener">查看广告库原文 →</a>`
+  const libraryUrl = safeHttpUrl(ad.fb_lib_url);
+  const libLink = libraryUrl
+    ? ` · <a href="${escapeHtml(libraryUrl)}" target="_blank" rel="noopener noreferrer">查看广告库原文 →</a>`
     : '';
   const basisText = ad.relevance_basis === 'landing_url'
     ? ' · 依据：落地页链接'
@@ -343,15 +386,14 @@ function renderAdItem(ad, productImage) {
 }
 
 function monitorBadge(r) {
-  const n = r.member_count;
-  if (n >= 3) return `<span class="badge badge-multi-hi">👥 ${n} 个监控站在做</span>`;
-  if (n >= 2) return `<span class="badge badge-multi">👥 ${n} 个监控站在做</span>`;
+  const n = finiteNumber(r.member_count, 0) ?? 0;
+  if (n >= 3) return `<span class="badge badge-multi-hi">👥 ${escapeHtml(n)} 个监控站在做</span>`;
+  if (n >= 2) return `<span class="badge badge-multi">👥 ${escapeHtml(n)} 个监控站在做</span>`;
   return `<span class="badge badge-off">👤 1 个监控站在做</span>`;
 }
 
 function runDays(r) {
-  const n = Number(r.max_run_days);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  return finiteNumber(r.max_run_days, 0);
 }
 
 function freshnessBadge(r) {
@@ -372,9 +414,13 @@ function cardFreshnessClass(r) {
 }
 
 function thumbHtml(r) {
-  if (!r.image_url) return '<div class="p-thumb-placeholder">未取到产品图</div>';
-  const url = r.members[0] && r.members[0].url ? r.members[0].url : '#';
-  return `<a class="p-thumb-wrap" href="${escapeHtml(url)}" target="_blank" rel="noopener"><img class="p-thumb-img" src="${escapeHtml(r.image_url)}" alt="${escapeHtml(r.clean_title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.outerHTML='<div class=\'p-thumb-placeholder\'>图片加载失败</div>'"></a>`;
+  const imageUrl = safeHttpUrl(r.image_url);
+  if (!imageUrl) return '<div class="p-thumb-placeholder">未取到产品图</div>';
+  const productUrl = safeHttpUrl(r.members[0] && r.members[0].url);
+  const image = `<img class="p-thumb-img" src="${escapeHtml(imageUrl)}" data-placeholder="product" alt="${escapeHtml(r.clean_title)}" loading="lazy" referrerpolicy="no-referrer">`;
+  return productUrl
+    ? `<a class="p-thumb-wrap" href="${escapeHtml(productUrl)}" target="_blank" rel="noopener noreferrer">${image}</a>`
+    : `<div class="p-thumb-wrap">${image}</div>`;
 }
 
 function renderCard(r) {
@@ -422,7 +468,7 @@ function renderCard(r) {
         <div class="p-meta-row">${monitorBadge(r)} ${reusedBadge}</div>
         <div class="member-list">${renderMembers(r.members)}</div>
         <div>
-          <div class="small-label">首屏样本落地域名（${r.cross_domains.length}）</div>
+          <div class="small-label">首屏样本落地域名（${escapeHtml(r.cross_domains.length)}）</div>
           <div class="chip-wrap">${renderChips(r.cross_domains, r.cross_site_links)}</div>
         </div>
         <div>
@@ -432,17 +478,17 @@ function renderCard(r) {
       </div>
       <div class="card-right">
         <div class="metrics-row">
-          <div class="metric-box"><div class="metric-num">${r.cross_count}</div><div class="metric-label">样本落地域名数</div></div>
-          <div class="metric-box"><div class="metric-num">${r.fb_total ?? '—'}</div><div class="metric-label">FB报告总数</div></div>
-          <div class="metric-box"><div class="metric-num">${r.relevant_label}</div><div class="metric-label">首屏相关样本</div></div>
-          <div class="metric-box"><div class="metric-num">${r.max_run_days ?? '—'}</div><div class="metric-label">最长投放天数</div></div>
+          <div class="metric-box"><div class="metric-num">${metricText(r.cross_count)}</div><div class="metric-label">样本落地域名数</div></div>
+          <div class="metric-box"><div class="metric-num">${metricText(r.fb_total)}</div><div class="metric-label">FB报告总数</div></div>
+          <div class="metric-box"><div class="metric-num">${escapeHtml(r.relevant_label)}</div><div class="metric-label">首屏相关样本</div></div>
+          <div class="metric-box"><div class="metric-num">${metricText(r.max_run_days)}</div><div class="metric-label">最长投放天数</div></div>
         </div>
         <div class="freshness-line">
           <div>${freshnessBadge(r)}</div>
           <div>${r.own_hit ? '<span class="badge badge-on">✅ 本站在投</span>' : '<span class="badge badge-off">⚪ 本站未投</span>'}</div>
         </div>
         <div class="launch-dates">${launchDates}</div>
-        <button class="toggle-ads-btn" onclick="const p=this.nextElementSibling;p.classList.toggle('open');this.textContent=p.classList.contains('open')?'收起广告样本 ▲':'展开广告样本（最多6条）▼';">展开广告样本（最多6条）▼</button>
+        <button type="button" class="toggle-ads-btn">展开广告样本（最多6条）▼</button>
         <div class="ads-panel">${adsHtml}</div>
       </div>
     </div>
@@ -450,9 +496,9 @@ function renderCard(r) {
 }
 
 function sortValue(r, key) {
-  if (key === 'cross') return r.cross_count || 0;
-  if (key === 'fbtotal') return r.fb_total || 0;
-  if (key === 'monitor') return r.member_count || 0;
+  if (key === 'cross') return finiteNumber(r.cross_count, 0) ?? 0;
+  if (key === 'fbtotal') return finiteNumber(r.fb_total, 0) ?? 0;
+  if (key === 'monitor') return finiteNumber(r.member_count, 0) ?? 0;
   return 0;
 }
 
@@ -492,11 +538,30 @@ function sectionHtml(title, count, cards, kind) {
       ? `最长投放天数${currentDirection === 'asc' ? '由短到长' : '由长到短'}（未返回天数的组排在最后）`
       : '已查到相关 FB 投放')
     : '查询未命中或尚未验证，固定置于列表底部';
-  return `<section class="result-section result-${kind}">
-    <div class="section-heading">${title} <span class="badge ${kind === 'found' ? 'badge-on' : 'badge-off'}">${count} 组</span></div>
-    <div class="section-note">${hint}</div>
+  const safeKind = kind === 'found' ? 'found' : 'not-found';
+  return `<section class="result-section result-${safeKind}">
+    <div class="section-heading">${escapeHtml(title)} <span class="badge ${safeKind === 'found' ? 'badge-on' : 'badge-off'}">${escapeHtml(count)} 组</span></div>
+    <div class="section-note">${escapeHtml(hint)}</div>
     <div class="grid">${cards}</div>
   </section>`;
+}
+
+function bindDynamicHandlers(root) {
+  root.querySelectorAll('.more-chip').forEach(button => {
+    button.addEventListener('click', () => expandChips(button.parentElement));
+  });
+  root.querySelectorAll('.toggle-ads-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const panel = button.nextElementSibling;
+      panel.classList.toggle('open');
+      button.textContent = panel.classList.contains('open')
+        ? '收起广告样本 ▲'
+        : '展开广告样本（最多6条）▼';
+    });
+  });
+  root.querySelectorAll('img[data-placeholder]').forEach(img => {
+    img.addEventListener('error', () => adThumbError(img));
+  });
 }
 
 function render() {
@@ -531,6 +596,7 @@ function render() {
   grid.innerHTML = sectionHtml('已查到 FB 投放', found.length, foundCards, 'found') +
     (found.length && notFound.length ? '<hr class="section-divider">' : '') +
     sectionHtml('未查到 FB 投放', notFound.length, notFoundCards, 'not-found');
+  bindDynamicHandlers(grid);
 }
 
 document.querySelectorAll('.sort-btn').forEach(btn => {
