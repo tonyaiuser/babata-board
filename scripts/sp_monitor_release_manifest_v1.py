@@ -12,6 +12,8 @@ from pathlib import Path
 
 SOURCE_SCHEMA = "sp-monitor-source-policy/v1"
 RUNTIME_SCHEMA = "sp-monitor-runtime-release/v1"
+EXACT_POLICY_NAME = "sp-monitor-release-v1"
+EXACT_ALLOW_WINDOW = {"timezone": "Asia/Shanghai", "start": "10:30", "end": "11:20"}
 POLICY_TOP = {"schema", "policy_name", "runtime_schema", "repository", "baseline", "bundle", "deployment"}
 RUNTIME_TOP = {"schema", "policy", "repository", "bundle", "bundle_digest", "release_id"}
 EXACT_BUNDLE = (
@@ -30,9 +32,118 @@ EXACT_DEPLOYMENT_PATHS = {
 }
 EXACT_DEPENDENTS = (
     ("single-page-monitor", "com.spspy.single-page-monitor"),
+    ("single-page-monitor-health", "com.spspy.single-page-monitor.health"),
     ("fb-verify", "com.spspy.fb-verify"),
     ("single-page-fb-nightly", "com.spspy.single-page-fb-nightly"),
 )
+DEPENDENT_CREDENTIAL_CONTRACT = "report_delivery_secret_v1"
+DEPENDENT_RELEASE_ID = re.compile(r"^[0-9]{8}T[0-9]{6}Z-[0-9]+$")
+# These are a release *topology*, not merely an inventory.  A resolved policy
+# can name only the stable launchd wrapper and the two files below the one
+# immutable generation selected by that consumer's `current` link.
+EXACT_DEPENDENT_CHAINS = {
+    "single-page-monitor": {
+        "root": "~/.spspy-single-page-monitor",
+        "stable": "~/.spspy-single-page-monitor/single-page-monitor/run_daily.sh",
+        "entry": "single-page-monitor/run_daily.sh",
+        "helper": "single-page-monitor/scripts/notify_dingtalk.py",
+    },
+    "single-page-monitor-health": {
+        "root": "~/.spspy-single-page-monitor",
+        "stable": "~/.spspy-single-page-monitor/single-page-monitor/check_health.mjs",
+        "entry": "single-page-monitor/check_health.mjs",
+        "helper": "single-page-monitor/scripts/notify_dingtalk.py",
+    },
+    "fb-verify": {
+        "root": "~/.spspy-fb-verify/fb-verify",
+        "stable": "~/.spspy-fb-verify/fb-verify/run_daily_fb_verify.sh",
+        "entry": "run_daily_fb_verify.sh",
+        "helper": "scripts/notify_dingtalk.py",
+    },
+    "single-page-fb-nightly": {
+        "root": "~/.spspy-fb-verify/fb-verify",
+        "stable": "~/.spspy-fb-verify/fb-verify/run_nightly_single_page_fb_verify.sh",
+        "entry": "run_nightly_single_page_fb_verify.sh",
+        "helper": "scripts/notify_dingtalk.py",
+    },
+}
+EXACT_DEPENDENT_LAUNCH_STATES = {
+    "single-page-monitor": {"enabled": True, "loaded": True},
+    "single-page-monitor-health": {"enabled": True, "loaded": True},
+    "fb-verify": {"enabled": False, "loaded": False},
+    "single-page-fb-nightly": {"enabled": False, "loaded": False},
+}
+# These values are intentionally independent from the mutable policy JSON.  A
+# resolver may refresh byte hashes and selected-release evidence, but it cannot
+# turn an unrelated launchd command into one of the four reviewed consumers.
+EXACT_DEPENDENT_CONFIGURED_ARGV = {
+    "single-page-monitor": ["/bin/bash", "-lc", "cd /Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor && ./run_daily.sh"],
+    "single-page-monitor-health": ["/bin/bash", "-lc", "cd /Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor && /usr/bin/env node check_health.mjs --notify yes"],
+    "fb-verify": ["/bin/bash", "-lc", "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_daily_fb_verify.sh"],
+    "single-page-fb-nightly": ["/bin/bash", "-lc", "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_nightly_single_page_fb_verify.sh"],
+}
+EXACT_DEPENDENT_MIGRATION_PROCESS_TOKENS = {
+    "single-page-monitor": [EXACT_DEPENDENT_CONFIGURED_ARGV["single-page-monitor"][2], "run_daily.sh", "scripts/notify_dingtalk.py"],
+    "single-page-monitor-health": [EXACT_DEPENDENT_CONFIGURED_ARGV["single-page-monitor-health"][2], "check_health.mjs", "scripts/notify_dingtalk.py"],
+    "fb-verify": [EXACT_DEPENDENT_CONFIGURED_ARGV["fb-verify"][2], "run_daily_fb_verify.sh", "scripts/notify_dingtalk.py"],
+    "single-page-fb-nightly": [EXACT_DEPENDENT_CONFIGURED_ARGV["single-page-fb-nightly"][2], "run_nightly_single_page_fb_verify.sh", "scripts/notify_dingtalk.py"],
+}
+EXACT_DEPENDENT_PLISTS = {
+    "single-page-monitor": {
+        "Label": "com.spspy.single-page-monitor",
+        "ProgramArguments": EXACT_DEPENDENT_CONFIGURED_ARGV["single-page-monitor"],
+        "RunAtLoad": False,
+        "StandardErrorPath": "/Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor/logs/launchd.err.log",
+        "StandardOutPath": "/Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor/logs/launchd.out.log",
+        "StartCalendarInterval": {"Hour": 10, "Minute": 20},
+    },
+    "single-page-monitor-health": {
+        "Label": "com.spspy.single-page-monitor.health",
+        "ProgramArguments": EXACT_DEPENDENT_CONFIGURED_ARGV["single-page-monitor-health"],
+        "RunAtLoad": True,
+        "StandardErrorPath": "/Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor/logs/health.err.log",
+        "StandardOutPath": "/Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor/logs/health.out.log",
+        "StartInterval": 1800,
+    },
+    "fb-verify": {
+        "Label": "com.spspy.fb-verify",
+        "ProgramArguments": EXACT_DEPENDENT_CONFIGURED_ARGV["fb-verify"],
+        "RunAtLoad": False,
+        "StandardErrorPath": "/Users/tonyaiuser/.openclaw/logs/automation/fb_verify.launchd.err.log",
+        "StandardOutPath": "/Users/tonyaiuser/.openclaw/logs/automation/fb_verify.launchd.out.log",
+        "StartCalendarInterval": {"Hour": 11, "Minute": 30},
+    },
+    "single-page-fb-nightly": {
+        "Label": "com.spspy.single-page-fb-nightly",
+        "ProgramArguments": EXACT_DEPENDENT_CONFIGURED_ARGV["single-page-fb-nightly"],
+        "RunAtLoad": False,
+        "StandardErrorPath": "/Users/tonyaiuser/.openclaw/logs/automation/fb_nightly.launchd.err.log",
+        "StandardOutPath": "/Users/tonyaiuser/.openclaw/logs/automation/fb_nightly.launchd.out.log",
+        "StartCalendarInterval": {"Hour": 21, "Minute": 5},
+    },
+}
+EXACT_LOADED_PROPERTIES = {
+    "ai.openclaw.sp.morning": {"inferred program"},
+    "com.spspy.single-page-monitor": {"inferred program", "managed LWCR", "has LWCR"},
+    "com.spspy.single-page-monitor.health": {"runatload", "inferred program", "managed LWCR", "has LWCR"},
+}
+# A consumer earns the shared credential contract only when the helper bytes
+# reviewed for that consumer are present in its selected immutable release.
+EXACT_DEPENDENT_HELPER_SHA256 = {
+    "single-page-monitor": "fbc9ce82e3fc0cb8c995cd7ba417833313b951e76bbb3d9ae6e9de8f1d51dde0",
+    "single-page-monitor-health": "fbc9ce82e3fc0cb8c995cd7ba417833313b951e76bbb3d9ae6e9de8f1d51dde0",
+    "fb-verify": "1cafacc24784ab73b186ff077946871619a1dc60c2052f1f67e85a7b82214058",
+    "single-page-fb-nightly": "1cafacc24784ab73b186ff077946871619a1dc60c2052f1f67e85a7b82214058",
+}
+# Exact deployed/staged modes observed for every credential-reading source.
+# Single's immutable stage removes write bits after setting executable roles;
+# FB preserves 0755 entrypoints and a 0644 imported notifier.
+EXACT_DEPENDENT_SOURCE_MODES = {
+    "single-page-monitor": {"stable_wrapper": "0755", "selected_entrypoint": "0555", "notify_helper": "0555"},
+    "single-page-monitor-health": {"stable_wrapper": "0755", "selected_entrypoint": "0444", "notify_helper": "0555"},
+    "fb-verify": {"stable_wrapper": "0755", "selected_entrypoint": "0755", "notify_helper": "0644"},
+    "single-page-fb-nightly": {"stable_wrapper": "0755", "selected_entrypoint": "0755", "notify_helper": "0644"},
+}
 EXACT_MAIN_PLIST = {
     "label": "ai.openclaw.sp.morning",
     "interpreter": "/opt/homebrew/bin/python3",
@@ -44,6 +155,24 @@ EXACT_MAIN_PLIST = {
     "calendar": {"Hour": 11, "Minute": 30},
     "run_at_load": False,
 }
+
+
+def exact_main_plist_value(home):
+    if type(home) is not str or not home.startswith("/") or home.endswith("/"):
+        raise ManifestSchemaError("invalid bound home for main plist contract")
+    return {
+        "EnvironmentVariables": {
+            "HOME": home,
+            "OPENCLAW_BIN": "/opt/homebrew/bin/openclaw",
+            "PATH": f"/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{home}/.local/bin",
+        },
+        "Label": EXACT_MAIN_PLIST["label"],
+        "ProgramArguments": [EXACT_MAIN_PLIST["interpreter"], home + "/.openclaw/workspace/skills/sp-monitor/run.py", *EXACT_MAIN_PLIST["arguments"]],
+        "RunAtLoad": EXACT_MAIN_PLIST["run_at_load"],
+        "StandardErrorPath": home + "/.openclaw/logs/automation/sp_morning.err.log",
+        "StandardOutPath": home + "/.openclaw/logs/automation/sp_morning.log",
+        "StartCalendarInterval": dict(EXACT_MAIN_PLIST["calendar"]),
+    }
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 COMMIT = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
@@ -105,45 +234,80 @@ def _fixed_path(value, what):
     return value
 
 
-def _validate_source_files(value, what, unresolved=False):
-    if type(value) is not list or not value: raise ManifestSchemaError(f"invalid {what}")
+def _validate_source_files(value, what, chain, selected, expected_modes, unresolved=False):
+    if type(value) is not list or len(value) != 3: raise ManifestSchemaError(f"invalid {what}")
+    expected_roles = ("stable_wrapper", "selected_entrypoint", "notify_helper")
     paths = []
-    for item in value:
-        _dict(item, {"path", "sha256"}, what + " item")
+    for index, item in enumerate(value):
+        _dict(item, {"role", "path", "sha256", "mode"}, what + " item")
+        if item["role"] != expected_roles[index]: raise ManifestSchemaError("dependent source role/order differs")
+        if item["mode"] != expected_modes[item["role"]]: raise ManifestSchemaError("dependent source mode differs")
         path = _fixed_path(item["path"], what + " path"); digest = item["sha256"]
         if digest != "REQUIRED_AT_DEPLOY": _sha(digest, what + " SHA-256")
         if not unresolved and (path == "REQUIRED_AT_DEPLOY" or digest == "REQUIRED_AT_DEPLOY"): raise ManifestSchemaError(f"unresolved {what}")
         paths.append(path)
-    if len(paths) != len(set(paths)): raise ManifestSchemaError(f"duplicate {what} path")
+    expected_paths = [chain["stable"], "REQUIRED_AT_DEPLOY", "REQUIRED_AT_DEPLOY"]
+    if selected["release_path"] != "REQUIRED_AT_DEPLOY":
+        expected_paths[1:] = [selected["release_path"] + "/" + chain["entry"], selected["release_path"] + "/" + chain["helper"]]
+    if paths != expected_paths: raise ManifestSchemaError("dependent source path relation differs")
+    concrete_paths = [path for path in paths if path != "REQUIRED_AT_DEPLOY"]
+    if len(concrete_paths) != len(set(concrete_paths)): raise ManifestSchemaError(f"duplicate {what} path")
     return value
 
 
 def _validate_dependency(item):
-    _dict(item, {"name", "source_files", "plist_sha256", "labels", "configured_argv", "process_match_tokens", "unresolved"}, "dependent consumer")
-    _text(item["name"], "consumer name")
+    _dict(item, {"name", "source_files", "selected_release", "plist_sha256", "labels", "configured_argv", "process_match_tokens", "unresolved", "credential_contract", "required_launch_state"}, "dependent consumer")
+    name = _text(item["name"], "consumer name")
+    if name not in EXACT_DEPENDENT_CHAINS: raise ManifestSchemaError("unknown dependent consumer")
+    chain = EXACT_DEPENDENT_CHAINS[name]
+    if item["credential_contract"] != DEPENDENT_CREDENTIAL_CONTRACT: raise ManifestSchemaError("invalid dependent credential contract")
+    launch_state = _dict(item["required_launch_state"], {"enabled", "loaded"}, "dependent required launch state")
+    if type(launch_state["enabled"]) is not bool or type(launch_state["loaded"]) is not bool: raise ManifestSchemaError("invalid dependent required launch state")
+    if name not in EXACT_DEPENDENT_LAUNCH_STATES or launch_state != EXACT_DEPENDENT_LAUNCH_STATES[name]: raise ManifestSchemaError("dependent required launch state differs")
     if type(item["unresolved"]) is not bool: raise ManifestSchemaError("invalid unresolved flag")
-    _validate_source_files(item["source_files"], "source_files", item["unresolved"])
+    selected = _dict(item["selected_release"], {"root", "current_path", "target", "release_path", "release_id"}, "dependent selected release")
+    if selected["root"] != chain["root"] or selected["current_path"] != chain["root"] + "/current":
+        raise ManifestSchemaError("dependent selected release root differs")
+    for key in ("target", "release_path", "release_id"):
+        _text(selected[key], "dependent selected release " + key)
+    placeholders = {key for key in ("target", "release_path", "release_id") if selected[key] == "REQUIRED_AT_DEPLOY"}
+    if placeholders and placeholders != {"target", "release_path", "release_id"}:
+        raise ManifestSchemaError("dependent selected release placeholders must be all-or-none")
+    if not placeholders:
+        release_id = selected["release_id"]
+        if DEPENDENT_RELEASE_ID.fullmatch(release_id) is None:
+            raise ManifestSchemaError("invalid dependent selected release id")
+        if selected["target"] != "releases/" + release_id or selected["release_path"] != chain["root"] + "/" + selected["target"]:
+            raise ManifestSchemaError("dependent selected release path relation differs")
+    sources = _validate_source_files(item["source_files"], "source_files", chain, selected, EXACT_DEPENDENT_SOURCE_MODES[name], item["unresolved"])
+    reviewed_helper_sha256 = EXACT_DEPENDENT_HELPER_SHA256[name]
+    if not item["unresolved"]:
+        if reviewed_helper_sha256 is None:
+            raise ManifestSchemaError("reviewed dependent helper hash is unavailable")
+        if sources[2]["sha256"] != reviewed_helper_sha256:
+            raise ManifestSchemaError("dependent notify helper SHA-256 differs from reviewed value")
     if item["plist_sha256"] != "REQUIRED_AT_DEPLOY": _sha(item["plist_sha256"], "plist_sha256")
     argv = item["configured_argv"]
     tokens = item["process_match_tokens"]
-    if type(argv) is not list or not argv or any(type(x) is not str or not x for x in argv): raise ManifestSchemaError("invalid dependent configured argv")
-    if type(tokens) is not list or not tokens or any(type(x) is not str or not x for x in tokens): raise ManifestSchemaError("invalid dependent process match tokens")
-    if len(tokens) != len(set(tokens)): raise ManifestSchemaError("duplicate dependent process match token")
-    if argv != ["REQUIRED_AT_DEPLOY"] and (argv[:2] != ["/bin/bash", "-lc"] or len(argv) != 3): raise ManifestSchemaError("invalid dependent wrapper argv")
-    if tokens != ["REQUIRED_AT_DEPLOY"] and ("/bin/bash" in tokens or (argv != ["REQUIRED_AT_DEPLOY"] and argv[2] not in tokens)):
-        raise ManifestSchemaError("invalid dependent process identity contract")
-    unresolved_values = item["plist_sha256"] == "REQUIRED_AT_DEPLOY" or argv == ["REQUIRED_AT_DEPLOY"] or tokens == ["REQUIRED_AT_DEPLOY"]
+    if argv != EXACT_DEPENDENT_CONFIGURED_ARGV[name]:
+        raise ManifestSchemaError("dependent wrapper argv differs from frozen command")
+    if type(tokens) is not list or any(type(x) is not str or not x for x in tokens):
+        raise ManifestSchemaError("invalid dependent process match tokens")
+    expected_tokens = [argv[2], "REQUIRED_AT_DEPLOY", "REQUIRED_AT_DEPLOY"] if item["unresolved"] else [argv[2], sources[1]["path"], sources[2]["path"]]
+    if tokens != expected_tokens:
+        raise ManifestSchemaError("dependent process identity contract differs from exact three-role chain")
+    unresolved_values = (item["plist_sha256"] == "REQUIRED_AT_DEPLOY" or "REQUIRED_AT_DEPLOY" in argv or "REQUIRED_AT_DEPLOY" in tokens or bool(placeholders))
     if not item["unresolved"]:
         if unresolved_values: raise ManifestSchemaError("invalid resolved dependent process contract")
     elif not unresolved_values and all(source["path"] != "REQUIRED_AT_DEPLOY" and source["sha256"] != "REQUIRED_AT_DEPLOY" for source in item["source_files"]):
         raise ManifestSchemaError("unresolved dependent lacks explicit placeholder")
-    if type(item["labels"]) is not list or not item["labels"] or any(type(x) is not str or not x for x in item["labels"]): raise ManifestSchemaError("invalid consumer labels")
+    if item["labels"] != [dict(EXACT_DEPENDENTS)[name]]: raise ManifestSchemaError("dependent label differs from frozen inventory")
 
 
 def _validate_policy(policy):
     _dict(policy, POLICY_TOP, "source policy")
     if policy["schema"] != SOURCE_SCHEMA or policy["runtime_schema"] != RUNTIME_SCHEMA: raise ManifestSchemaError("unsupported schema")
-    _text(policy["policy_name"], "policy_name")
+    if policy["policy_name"] != EXACT_POLICY_NAME: raise ManifestSchemaError("policy_name differs from frozen value")
     repo = _dict(policy["repository"], {"required_ref"}, "repository policy")
     if repo["required_ref"] != "refs/heads/main": raise ManifestSchemaError("repository ref must be refs/heads/main")
     baseline = _dict(policy["baseline"], {"live_entrypoint_sha256"}, "baseline")
@@ -164,6 +328,7 @@ def _validate_policy(policy):
             type(window["start"]) is not str or clock_time.fullmatch(window["start"]) is None or
             type(window["end"]) is not str or clock_time.fullmatch(window["end"]) is None):
         raise ManifestSchemaError("invalid allow window")
+    if window != EXACT_ALLOW_WINDOW: raise ManifestSchemaError("allow window differs from frozen value")
     plist = _dict(dep["plist"], {"label", "interpreter", "entrypoint", "arguments", "entrypoint_index", "plist_keys", "environment_variable_keys", "calendar", "run_at_load", "plist_sha256"}, "plist policy")
     if (type(plist["label"]) is not str or type(plist["interpreter"]) is not str or type(plist["entrypoint"]) is not str or
             type(plist["arguments"]) is not list or any(type(value) is not str for value in plist["arguments"]) or

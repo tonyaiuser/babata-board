@@ -39,6 +39,7 @@
           "-lc",
           "cd /Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor && ./run_daily.sh"
         ],
+        "credential_contract": "report_delivery_secret_v1",
         "labels": [
           "com.spspy.single-page-monitor"
         ],
@@ -46,23 +47,90 @@
         "plist_sha256": "bd2d7de333e4f82a7e6731dea31528edd51944bc0eb5eb9be9a29ef58cd84edc",
         "process_match_tokens": [
           "cd /Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor && ./run_daily.sh",
-          "/Users/tonyaiuser/.spspy-single-page-monitor/releases/20260802T010448Z-11533/single-page-monitor/run_daily.sh",
-          "/Users/tonyaiuser/.spspy-single-page-monitor/releases/20260802T010448Z-11533/single-page-monitor/check_health.mjs"
+          "REQUIRED_AT_DEPLOY",
+          "REQUIRED_AT_DEPLOY"
         ],
+        "required_launch_state": {
+          "enabled": true,
+          "loaded": true
+        },
         "source_files": [
           {
+            "mode": "0755",
             "path": "~/.spspy-single-page-monitor/single-page-monitor/run_daily.sh",
+            "role": "stable_wrapper",
             "sha256": "REQUIRED_AT_DEPLOY"
           },
           {
-            "path": "~/.spspy-single-page-monitor/releases/20260802T010448Z-11533/single-page-monitor/run_daily.sh",
+            "mode": "0555",
+            "path": "REQUIRED_AT_DEPLOY",
+            "role": "selected_entrypoint",
             "sha256": "REQUIRED_AT_DEPLOY"
           },
           {
-            "path": "~/.spspy-single-page-monitor/releases/20260802T010448Z-11533/single-page-monitor/check_health.mjs",
+            "mode": "0555",
+            "path": "REQUIRED_AT_DEPLOY",
+            "role": "notify_helper",
             "sha256": "REQUIRED_AT_DEPLOY"
           }
         ],
+        "selected_release": {
+          "current_path": "~/.spspy-single-page-monitor/current",
+          "release_id": "REQUIRED_AT_DEPLOY",
+          "release_path": "REQUIRED_AT_DEPLOY",
+          "root": "~/.spspy-single-page-monitor",
+          "target": "REQUIRED_AT_DEPLOY"
+        },
+        "unresolved": true
+      },
+      {
+        "configured_argv": [
+          "/bin/bash",
+          "-lc",
+          "cd /Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor && /usr/bin/env node check_health.mjs --notify yes"
+        ],
+        "credential_contract": "report_delivery_secret_v1",
+        "labels": [
+          "com.spspy.single-page-monitor.health"
+        ],
+        "name": "single-page-monitor-health",
+        "plist_sha256": "710d449e14237f47d69a4e5aba91fb4389183735be914127e352bdc733331cc2",
+        "process_match_tokens": [
+          "cd /Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor && /usr/bin/env node check_health.mjs --notify yes",
+          "REQUIRED_AT_DEPLOY",
+          "REQUIRED_AT_DEPLOY"
+        ],
+        "required_launch_state": {
+          "enabled": true,
+          "loaded": true
+        },
+        "source_files": [
+          {
+            "mode": "0755",
+            "path": "~/.spspy-single-page-monitor/single-page-monitor/check_health.mjs",
+            "role": "stable_wrapper",
+            "sha256": "REQUIRED_AT_DEPLOY"
+          },
+          {
+            "mode": "0444",
+            "path": "REQUIRED_AT_DEPLOY",
+            "role": "selected_entrypoint",
+            "sha256": "REQUIRED_AT_DEPLOY"
+          },
+          {
+            "mode": "0555",
+            "path": "REQUIRED_AT_DEPLOY",
+            "role": "notify_helper",
+            "sha256": "REQUIRED_AT_DEPLOY"
+          }
+        ],
+        "selected_release": {
+          "current_path": "~/.spspy-single-page-monitor/current",
+          "release_id": "REQUIRED_AT_DEPLOY",
+          "release_path": "REQUIRED_AT_DEPLOY",
+          "root": "~/.spspy-single-page-monitor",
+          "target": "REQUIRED_AT_DEPLOY"
+        },
         "unresolved": true
       },
       {
@@ -71,6 +139,7 @@
           "-lc",
           "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_daily_fb_verify.sh"
         ],
+        "credential_contract": "report_delivery_secret_v1",
         "labels": [
           "com.spspy.fb-verify"
         ],
@@ -78,23 +147,40 @@
         "plist_sha256": "691bfbc444eb85835d572ab0182a2d942b78b98ef223d06f59a856fc0e5f8d56",
         "process_match_tokens": [
           "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_daily_fb_verify.sh",
-          "/Users/tonyaiuser/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/run_daily_fb_verify.sh",
-          "/Users/tonyaiuser/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/scripts/notify_dingtalk.py"
+          "REQUIRED_AT_DEPLOY",
+          "REQUIRED_AT_DEPLOY"
         ],
+        "required_launch_state": {
+          "enabled": false,
+          "loaded": false
+        },
         "source_files": [
           {
+            "mode": "0755",
             "path": "~/.spspy-fb-verify/fb-verify/run_daily_fb_verify.sh",
-            "sha256": "6410d6e5554714a1dd37372390cb83199b55a03359c59753f74f615e56e68594"
+            "role": "stable_wrapper",
+            "sha256": "REQUIRED_AT_DEPLOY"
           },
           {
-            "path": "~/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/run_daily_fb_verify.sh",
-            "sha256": "faea85eead6d5ec8766fb4ecb7f49eb471e7293c52e4f007b1a295c9273c1ecf"
+            "mode": "0755",
+            "path": "REQUIRED_AT_DEPLOY",
+            "role": "selected_entrypoint",
+            "sha256": "REQUIRED_AT_DEPLOY"
           },
           {
-            "path": "~/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/scripts/notify_dingtalk.py",
+            "mode": "0644",
+            "path": "REQUIRED_AT_DEPLOY",
+            "role": "notify_helper",
             "sha256": "REQUIRED_AT_DEPLOY"
           }
         ],
+        "selected_release": {
+          "current_path": "~/.spspy-fb-verify/fb-verify/current",
+          "release_id": "REQUIRED_AT_DEPLOY",
+          "release_path": "REQUIRED_AT_DEPLOY",
+          "root": "~/.spspy-fb-verify/fb-verify",
+          "target": "REQUIRED_AT_DEPLOY"
+        },
         "unresolved": true
       },
       {
@@ -103,6 +189,7 @@
           "-lc",
           "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_nightly_single_page_fb_verify.sh"
         ],
+        "credential_contract": "report_delivery_secret_v1",
         "labels": [
           "com.spspy.single-page-fb-nightly"
         ],
@@ -110,23 +197,40 @@
         "plist_sha256": "8648b05d65f29993e42be48453e252c3710c22af1f09767af74da2990d1108da",
         "process_match_tokens": [
           "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_nightly_single_page_fb_verify.sh",
-          "/Users/tonyaiuser/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/run_nightly_single_page_fb_verify.sh",
-          "/Users/tonyaiuser/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/scripts/notify_dingtalk.py"
+          "REQUIRED_AT_DEPLOY",
+          "REQUIRED_AT_DEPLOY"
         ],
+        "required_launch_state": {
+          "enabled": false,
+          "loaded": false
+        },
         "source_files": [
           {
+            "mode": "0755",
             "path": "~/.spspy-fb-verify/fb-verify/run_nightly_single_page_fb_verify.sh",
-            "sha256": "6410d6e5554714a1dd37372390cb83199b55a03359c59753f74f615e56e68594"
+            "role": "stable_wrapper",
+            "sha256": "REQUIRED_AT_DEPLOY"
           },
           {
-            "path": "~/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/run_nightly_single_page_fb_verify.sh",
-            "sha256": "7ea980744fbab6f8af7413ca7796148e9f729aa7574bfed12e1c2ba5efba6e2a"
+            "mode": "0755",
+            "path": "REQUIRED_AT_DEPLOY",
+            "role": "selected_entrypoint",
+            "sha256": "REQUIRED_AT_DEPLOY"
           },
           {
-            "path": "~/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/scripts/notify_dingtalk.py",
+            "mode": "0644",
+            "path": "REQUIRED_AT_DEPLOY",
+            "role": "notify_helper",
             "sha256": "REQUIRED_AT_DEPLOY"
           }
         ],
+        "selected_release": {
+          "current_path": "~/.spspy-fb-verify/fb-verify/current",
+          "release_id": "REQUIRED_AT_DEPLOY",
+          "release_path": "REQUIRED_AT_DEPLOY",
+          "root": "~/.spspy-fb-verify/fb-verify",
+          "target": "REQUIRED_AT_DEPLOY"
+        },
         "unresolved": true
       }
     ],
