@@ -13,6 +13,8 @@ const stableRunnerSource = path.join(monitorDir, "stable_run_daily.sh");
 const stableHealthSource = path.join(monitorDir, "stable_check_health.mjs");
 const lockHelperSource = path.join(monitorDir, "scripts", "locked_exec.py");
 const rollbackCleanupSource = path.join(monitorDir, "scripts", "rollback_cleanup.py");
+const notifyHelperSource = path.join(monitorDir, "scripts", "notify_dingtalk.py");
+const notifyTestSource = path.join(monitorDir, "tests", "test_notify_dingtalk.py");
 const deploymentTest = process.env.SP_SINGLE_PAGE_STAGE_SELFTEST === "1" ? test.skip : test;
 // This fixture is authorized only when SP_SINGLE_PAGE_TEST_MODE is set.  The
 // deployment code accepts it by its complete SHA, never by this text marker.
@@ -348,6 +350,31 @@ async function crashStablePrecurrentTransaction(fixture, prefix) {
   process.kill(-deploying.child.pid, "SIGKILL");
   assert.equal((await deploying.exited).signal, "SIGKILL");
 }
+
+test("one release-local notifier owns credentials and transport and is packaged with its tests", async () => {
+  const [daily, health, deploy, packageJson, helper, helperTest] = await Promise.all([
+    fs.readFile(path.join(monitorDir, "run_daily.sh"), "utf8"),
+    fs.readFile(path.join(monitorDir, "check_health.mjs"), "utf8"),
+    fs.readFile(deployScript, "utf8"),
+    fs.readFile(path.join(monitorDir, "package.json"), "utf8"),
+    fs.readFile(notifyHelperSource, "utf8"),
+    fs.readFile(notifyTestSource, "utf8"),
+  ]);
+  const consumers = `${daily}\n${health}`;
+  assert.doesNotMatch(consumers, /skills\/sp-monitor\/run\.py/);
+  assert.doesNotMatch(consumers, /DINGTALK_WEBHOOK|DINGTALK_SECRET/);
+  assert.doesNotMatch(consumers, /SP_SINGLE_PAGE_DINGTALK_CONFIG|SP_DINGTALK_/);
+  assert.doesNotMatch(daily, /urllib\.request|\bast\b|\bhmac\b/);
+  assert.doesNotMatch(health, /node:https|createHmac|parsePythonConstant|loadDingTalkConfig/);
+  assert.match(daily, /scripts\/notify_dingtalk\.py/);
+  assert.match(health, /scripts", "notify_dingtalk\.py/);
+  assert.match(health, /spawnSync/);
+  assert.match(deploy, /scripts\/notify_dingtalk\.py/);
+  assert.match(deploy, /tests\/test_notify_dingtalk\.py/);
+  assert.match(packageJson, /test_notify_dingtalk/);
+  assert.match(helper, /MAX_PAYLOAD_BYTES = 256 \* 1024/);
+  assert.match(helperTest, /test_dry_run_validates_input_without_secret_or_transport/);
+});
 
 deploymentTest("staging keeps the stable entrypoint live, runs exact staged npm test, and preserves data", async () => {
   const fixture = await setupFixture();

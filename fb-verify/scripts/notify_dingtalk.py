@@ -1,39 +1,47 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-FB 广告库验证 —— 独立钉钉推送。
-
-只读复用单页监控 run_daily.sh 里同一套凭证获取方式：从
-~/.openclaw/workspace/skills/sp-monitor/run.py 里用 ast 静态解析出
-DINGTALK_WEBHOOK / DINGTALK_SECRET 两个常量（不 import、不执行该文件，也不修改它），
-用同一套 HMAC-SHA256 签名逻辑直接调用钉钉自定义机器人 webhook。
-
-不硬编码、不打印 webhook/secret 到 stdout/stderr/日志。
-
-用法:
-  python3 notify_dingtalk.py \
-      --verified-count 3 --matched-count 2 --fresh-count 1 --multi-site-count 0 \
-      --matched-products-json '[{"title":"Example"}]' \
-      --dashboard-url https://tonyaiuser.github.io/babata-board/fb_verify_dashboard.html \
-      [--dry-run]
-
---dry-run: 只打印将要发送的消息正文（标题+markdown文本），不读取凭证、不发起任何网络请求。
-"""
+"""Fail-closed FB DingTalk notifier with a fixed credential location."""
 
 import argparse
-import ast
 import base64
 import hashlib
 import hmac
 import json
+import os
+import stat
 import sys
 import time
 import urllib.parse
 import urllib.request
-from pathlib import Path
 
-DEFAULT_CONFIG = "/Users/tonyaiuser/.openclaw/workspace/skills/sp-monitor/run.py"
+
+PRODUCTION_HOME = "/Users/tonyaiuser"
+SECRET_COMPONENTS = (".openclaw", "secrets", "sp-monitor", "report_delivery.json")
+MAX_SECRET_BYTES = 16 * 1024
+MAX_CREDENTIAL_TEXT = 4096
+MAX_RESPONSE_BYTES = 65536
 MAX_PRODUCT_DETAILS = 10
+
+EXIT_OK = 0
+EXIT_USAGE = 64
+EXIT_SECRET_CONTENT = 65
+EXIT_SECRET_MISSING = 66
+EXIT_INTERNAL = 70
+EXIT_TRANSPORT = 75
+EXIT_RESPONSE = 76
+EXIT_UNSAFE = 77
+
+
+class NotifierFailure(Exception):
+    def __init__(self, code):
+        super().__init__()
+        self.code = code
+
+
+class UsageFailure(Exception):
+    pass
+
+
+SecretError = NotifierFailure
 
 
 def clean_inline(value, limit=72):
@@ -65,15 +73,8 @@ def product_markdown(index, product):
     )
 
 
-def build_message(
-    verified_count,
-    matched_count,
-    fresh_count,
-    multi_site_count,
-    dashboard_url,
-    matched_products=None,
-    batch_url="",
-):
+def build_message(verified_count, matched_count, fresh_count, multi_site_count,
+                  dashboard_url, matched_products=None, batch_url=""):
     title = "FB 投放验证已更新"
     products = list(matched_products or [])
     detail_products = products[:MAX_PRODUCT_DETAILS]
@@ -87,7 +88,6 @@ def build_message(
     batch_link = ""
     if batch_url:
         batch_link = f"[查看本轮 {matched_count} 个产品图文看板]({batch_url})\n\n"
-
     text = f"""### {title}
 
 - 本轮完成 FB 查询：{verified_count}
@@ -102,93 +102,317 @@ def build_message(
     return title, text
 
 
-def load_credentials(config_path):
-    source = Path(config_path).read_text(encoding="utf-8")
-    module = ast.parse(source)
-    values = {}
-    for node in module.body:
-        if not isinstance(node, ast.Assign):
-            continue
-        for target in node.targets:
-            if isinstance(target, ast.Name) and target.id in {"DINGTALK_WEBHOOK", "DINGTALK_SECRET"}:
-                values[target.id] = ast.literal_eval(node.value)
-    webhook = values.get("DINGTALK_WEBHOOK")
-    secret = values.get("DINGTALK_SECRET")
-    if not webhook or not secret:
-        raise SystemExit("missing DingTalk webhook or secret in config")
-    return webhook, secret
+def _required_flag(name):
+    value = getattr(os, name, None)
+    if value is None:
+        raise NotifierFailure(EXIT_UNSAFE)
+    return value
 
 
-def send(webhook, secret, title, text):
-    payload = {
-        "msgtype": "markdown",
-        "markdown": {"title": title, "text": text},
-    }
-    timestamp = str(round(time.time() * 1000))
+def _safe_close(fd):
+    if fd is not None:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+
+def _open_directory(name, parent_fd, final=False):
+    flags = (_required_flag("O_RDONLY") | _required_flag("O_DIRECTORY") |
+             _required_flag("O_NOFOLLOW") | _required_flag("O_CLOEXEC"))
+    try:
+        fd = os.open(name, flags, dir_fd=parent_fd)
+    except FileNotFoundError as exc:
+        raise NotifierFailure(EXIT_SECRET_MISSING) from exc
+    except OSError as exc:
+        raise NotifierFailure(EXIT_UNSAFE) from exc
+    try:
+        details = os.fstat(fd)
+        mode = stat.S_IMODE(details.st_mode)
+        unsafe = (not stat.S_ISDIR(details.st_mode) or details.st_uid != os.geteuid() or
+                  (final and mode != 0o700) or (not final and mode & 0o022))
+        if unsafe:
+            raise NotifierFailure(EXIT_UNSAFE)
+        return fd
+    except Exception:
+        _safe_close(fd)
+        raise
+
+
+def _same_binding(left, right):
+    fields = ("st_dev", "st_ino", "st_size", "st_mode", "st_uid", "st_nlink",
+              "st_mtime_ns", "st_ctime_ns")
+    return all(getattr(left, field) == getattr(right, field) for field in fields)
+
+
+def _read_secret_file(directory_fd):
+    name = SECRET_COMPONENTS[-1]
+    flags = (_required_flag("O_RDONLY") | _required_flag("O_NOFOLLOW") |
+             _required_flag("O_NONBLOCK") | _required_flag("O_CLOEXEC"))
+    try:
+        file_fd = os.open(name, flags, dir_fd=directory_fd)
+    except FileNotFoundError as exc:
+        raise NotifierFailure(EXIT_SECRET_MISSING) from exc
+    except OSError as exc:
+        raise NotifierFailure(EXIT_UNSAFE) from exc
+    try:
+        before = os.fstat(file_fd)
+        mode = stat.S_IMODE(before.st_mode)
+        if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.geteuid() or
+                mode != 0o600 or before.st_nlink != 1 or before.st_size > MAX_SECRET_BYTES):
+            raise NotifierFailure(EXIT_UNSAFE)
+        initial_named = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        if not _same_binding(before, initial_named):
+            raise NotifierFailure(EXIT_UNSAFE)
+        chunks = []
+        total = 0
+        while True:
+            chunk = os.read(file_fd, min(8192, MAX_SECRET_BYTES + 1 - total))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+            if total > MAX_SECRET_BYTES:
+                raise NotifierFailure(EXIT_UNSAFE)
+        after = os.fstat(file_fd)
+        named = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        if not _same_binding(before, after) or not _same_binding(after, named):
+            raise NotifierFailure(EXIT_UNSAFE)
+        if total != before.st_size:
+            raise NotifierFailure(EXIT_UNSAFE)
+        return b"".join(chunks)
+    finally:
+        _safe_close(file_fd)
+
+
+def _reject_constant(_value):
+    raise ValueError("non-finite number")
+
+
+def _no_duplicate_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate key")
+        result[key] = value
+    return result
+
+
+def _validate_text(value):
+    if not isinstance(value, str) or not value or value != value.strip() or len(value) > MAX_CREDENTIAL_TEXT:
+        raise ValueError("invalid text")
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        raise ValueError("control character")
+
+
+def _parse_credentials(raw):
+    try:
+        if raw.startswith(b"\xef\xbb\xbf") or b"\0" in raw:
+            raise ValueError("forbidden encoding")
+        decoded = raw.decode("utf-8", "strict")
+        data = json.loads(decoded, object_pairs_hook=_no_duplicate_keys,
+                          parse_constant=_reject_constant)
+        if not isinstance(data, dict) or set(data) != {"webhook", "secret"}:
+            raise ValueError("unexpected keys")
+        canonical = json.dumps(data, sort_keys=True, separators=(",", ":"),
+                               ensure_ascii=False).encode("utf-8") + b"\n"
+        if raw != canonical:
+            raise ValueError("noncanonical bytes")
+        _validate_text(data["webhook"])
+        _validate_text(data["secret"])
+        if any(char.isspace() and ord(char) < 128 for char in data["webhook"]):
+            raise ValueError("webhook whitespace")
+        parsed = urllib.parse.urlsplit(data["webhook"])
+        if parsed.query.partition("=")[0] != "access_token":
+            raise ValueError("invalid webhook query")
+        query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True, strict_parsing=True)
+        if (parsed.scheme != "https" or parsed.hostname != "oapi.dingtalk.com" or
+                parsed.path != "/robot/send" or parsed.port is not None or
+                parsed.username is not None or parsed.password is not None or parsed.fragment or
+                len(query) != 1 or query[0][0] != "access_token" or not query[0][1]):
+            raise ValueError("invalid webhook")
+        _validate_text(query[0][1])
+        if any(char.isspace() and ord(char) < 128 for char in query[0][1]):
+            raise ValueError("token whitespace")
+        return data["webhook"], data["secret"]
+    except Exception as exc:
+        raise NotifierFailure(EXIT_SECRET_CONTENT) from exc
+
+
+def load_credentials(*, trusted_home=None):
+    """Load the fixed production file; trusted_home exists only for tests."""
+    root = trusted_home if trusted_home is not None else PRODUCTION_HOME
+    directory_fds = []
+    bindings = []
+    try:
+        if not isinstance(root, (str, bytes, os.PathLike)) or not os.path.isabs(root):
+            raise NotifierFailure(EXIT_UNSAFE)
+        root_fd = _open_directory(root, None)
+        directory_fds.append(root_fd)
+        root_binding = os.fstat(root_fd)
+        if not _same_binding(root_binding, os.stat(root, follow_symlinks=False)):
+            raise NotifierFailure(EXIT_UNSAFE)
+        current_fd = root_fd
+        for index, component in enumerate(SECRET_COMPONENTS[:-1]):
+            next_fd = _open_directory(component, current_fd,
+                                      final=index == len(SECRET_COMPONENTS) - 2)
+            directory_fds.append(next_fd)
+            named = os.stat(component, dir_fd=current_fd, follow_symlinks=False)
+            opened = os.fstat(next_fd)
+            if not _same_binding(opened, named):
+                raise NotifierFailure(EXIT_UNSAFE)
+            bindings.append((current_fd, component, next_fd, opened))
+            current_fd = next_fd
+        raw = _read_secret_file(current_fd)
+        for parent_fd, component, child_fd, binding in bindings:
+            if not _same_binding(binding, os.fstat(child_fd)):
+                raise NotifierFailure(EXIT_UNSAFE)
+            if not _same_binding(binding, os.stat(component, dir_fd=parent_fd, follow_symlinks=False)):
+                raise NotifierFailure(EXIT_UNSAFE)
+        if (not _same_binding(root_binding, os.fstat(root_fd)) or
+                not _same_binding(root_binding, os.stat(root, follow_symlinks=False))):
+            raise NotifierFailure(EXIT_UNSAFE)
+        return _parse_credentials(raw)
+    except NotifierFailure:
+        raise
+    except (AttributeError, OSError, TypeError, ValueError):
+        raise NotifierFailure(EXIT_UNSAFE) from None
+    finally:
+        for directory_fd in reversed(directory_fds):
+            _safe_close(directory_fd)
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, new_url):
+        return None
+
+
+def _default_transport(request, *, timeout):
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+    return opener.open(request, timeout=timeout)
+
+
+def send(webhook, secret, title, text, *, transport, clock):
+    timestamp = str(round(clock() * 1000))
     string_to_sign = f"{timestamp}\n{secret}".encode("utf-8")
-    sign = urllib.parse.quote_plus(
-        base64.b64encode(hmac.new(secret.encode("utf-8"), string_to_sign, hashlib.sha256).digest()).decode("utf-8")
-    )
+    signature = base64.b64encode(
+        hmac.new(secret.encode("utf-8"), string_to_sign, hashlib.sha256).digest()
+    ).decode("ascii")
     separator = "&" if "?" in webhook else "?"
-    url = f"{webhook}{separator}timestamp={timestamp}&sign={sign}"
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=20) as response:
-        return response.read().decode("utf-8")
-
-
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--verified-count", type=int, required=True)
-    ap.add_argument("--matched-count", type=int, required=True)
-    ap.add_argument("--fresh-count", type=int, default=0)
-    ap.add_argument("--multi-site-count", type=int, default=0)
-    ap.add_argument("--matched-products-json", default="[]")
-    ap.add_argument("--batch-url", default="")
-    ap.add_argument("--dashboard-url", required=True)
-    ap.add_argument("--config", default=DEFAULT_CONFIG)
-    ap.add_argument("--dry-run", action="store_true")
-    args = ap.parse_args()
-
+    signed_url = f"{webhook}{separator}timestamp={timestamp}&sign={urllib.parse.quote_plus(signature)}"
+    payload = json.dumps({"msgtype": "markdown", "markdown": {"title": title, "text": text}},
+                         ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(signed_url, data=payload, headers={"Content-Type": "application/json"})
     try:
-        matched_products = json.loads(args.matched_products_json)
-    except json.JSONDecodeError as exc:
-        raise SystemExit(f"invalid --matched-products-json: {exc}") from exc
-    if not isinstance(matched_products, list):
-        raise SystemExit("--matched-products-json must be a JSON array")
+        response = transport(request, timeout=20)
+        with response as opened_response:
+            raw = opened_response.read(MAX_RESPONSE_BYTES + 1)
+            status = opened_response.getcode() if hasattr(opened_response, "getcode") else None
+    except Exception as exc:
+        raise NotifierFailure(EXIT_TRANSPORT) from exc
+    if status is not None and status != 200:
+        raise NotifierFailure(EXIT_TRANSPORT)
+    if not isinstance(raw, bytes):
+        raise NotifierFailure(EXIT_RESPONSE)
+    if len(raw) > MAX_RESPONSE_BYTES:
+        raise NotifierFailure(EXIT_RESPONSE)
+    try:
+        reply = json.loads(raw.decode("utf-8", "strict"), object_pairs_hook=_no_duplicate_keys,
+                           parse_constant=_reject_constant)
+        if type(reply) is not dict or type(reply.get("errcode")) is not int or reply["errcode"] != 0:
+            raise ValueError("rejected reply")
+    except Exception as exc:
+        raise NotifierFailure(EXIT_RESPONSE) from exc
 
-    title, text = build_message(
-        args.verified_count,
-        args.matched_count,
-        args.fresh_count,
-        args.multi_site_count,
-        args.dashboard_url,
-        matched_products,
-        args.batch_url,
-    )
 
-    if args.dry_run:
-        print("[notify_dingtalk] DRY RUN — 不读取凭证，不发送，仅打印消息体：")
-        print(f"--- title ---\n{title}")
-        print(f"--- markdown text ---\n{text}")
-        print("NOTIFY_SUMMARY_JSON " + json.dumps({"sent": False, "dry_run": True}, ensure_ascii=False))
+class _QuietArgumentParser(argparse.ArgumentParser):
+    def error(self, _message):
+        raise UsageFailure()
+
+
+def _parser():
+    parser = _QuietArgumentParser(add_help=False)
+    parser.add_argument("-h", "--help", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--verified-count", type=int, required=True)
+    parser.add_argument("--matched-count", type=int, required=True)
+    parser.add_argument("--fresh-count", type=int, default=0)
+    parser.add_argument("--multi-site-count", type=int, default=0)
+    parser.add_argument("--matched-products-json", default="[]")
+    parser.add_argument("--batch-url", default="")
+    parser.add_argument("--dashboard-url", required=True)
+    return parser
+
+
+def _validate_public_url(value, *, required):
+    if not value:
+        if required:
+            raise ValueError("missing URL")
         return
+    if (not isinstance(value, str) or len(value) > 8192 or value != value.strip() or
+            any(ord(char) < 32 or ord(char) == 127 for char in value)):
+        raise ValueError("invalid URL")
+    parsed = urllib.parse.urlsplit(value)
+    if (parsed.scheme != "https" or not parsed.hostname or parsed.username is not None or
+            parsed.password is not None or parsed.fragment):
+        raise ValueError("invalid URL")
 
-    webhook, secret = load_credentials(args.config)
+
+def _summary(sent, code=None, dry_run=False, stream=None):
+    result = {"sent": sent}
+    if dry_run:
+        result["dry_run"] = True
+    if code is not None:
+        result["code"] = code
+    print("NOTIFY_SUMMARY_JSON " + json.dumps(result, separators=(",", ":")), file=stream or sys.stdout)
+
+
+def main(argv=None, *, credential_loader=None, transport=None, clock=None):
+    parser = _parser()
+    raw_argv = sys.argv[1:] if argv is None else argv
+    if any(item in ("-h", "--help") for item in raw_argv):
+        print("usage: notify_dingtalk.py [options]")
+        return EXIT_OK
     try:
-        resp = send(webhook, secret, title, text)
-    except Exception as e:  # noqa: BLE001 - best-effort notify, caller treats failure as non-fatal
-        print(f"[notify_dingtalk] send failed: {e}", file=sys.stderr)
-        print("NOTIFY_SUMMARY_JSON " + json.dumps({"sent": False, "error": str(e)}, ensure_ascii=False))
-        sys.exit(1)
+        args = parser.parse_args(raw_argv)
+    except (UsageFailure, SystemExit):
+        _summary(False, EXIT_USAGE, stream=sys.stderr)
+        return EXIT_USAGE
+    try:
+        products = json.loads(args.matched_products_json)
+        if not isinstance(products, list):
+            raise ValueError("products must be a list")
+        if min(args.verified_count, args.matched_count, args.fresh_count, args.multi_site_count) < 0:
+            raise ValueError("negative count")
+        _validate_public_url(args.dashboard_url, required=True)
+        _validate_public_url(args.batch_url, required=False)
+        title, text = build_message(args.verified_count, args.matched_count, args.fresh_count,
+                                    args.multi_site_count, args.dashboard_url, products, args.batch_url)
+    except Exception:
+        _summary(False, EXIT_USAGE, stream=sys.stderr)
+        return EXIT_USAGE
+    if args.dry_run:
+        _summary(False, dry_run=True)
+        return EXIT_OK
+    try:
+        loader = _load if credential_loader is None else credential_loader
+        webhook, secret = loader()
+        sender = _default_transport if transport is None else transport
+        now = time.time if clock is None else clock
+        send(webhook, secret, title, text, transport=sender, clock=now)
+    except NotifierFailure as failure:
+        _summary(False, failure.code, stream=sys.stderr)
+        return failure.code
+    except Exception:
+        _summary(False, EXIT_INTERNAL, stream=sys.stderr)
+        return EXIT_INTERNAL
+    _summary(True)
+    return EXIT_OK
 
-    # 钉钉返回体里没有敏感信息（只有 errcode/errmsg），可以正常打印用于排障。
-    print(f"[notify_dingtalk] sent. response={resp}")
-    print("NOTIFY_SUMMARY_JSON " + json.dumps({"sent": True}, ensure_ascii=False))
+
+# Compatibility is intentionally private: public CLI callers cannot select a path.
+_load = load_credentials
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

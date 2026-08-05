@@ -2116,6 +2116,16 @@ class DeploymentSafetyTest(unittest.TestCase):
             first_release = os.readlink(deploy / "current")
             release = (deploy / "current").resolve()
             self.assertTrue((release / "scripts" / "state_io.py").is_file())
+            self.assertEqual((release / "scripts" / "notify_dingtalk.py").read_bytes(),
+                             (ROOT / "scripts" / "notify_dingtalk.py").read_bytes())
+            self.assertEqual((release / "tests" / "test_notify_dingtalk.py").read_bytes(),
+                             (ROOT / "tests" / "test_notify_dingtalk.py").read_bytes())
+            for path in (release / "scripts" / "notify_dingtalk.py", release / "tests" / "test_notify_dingtalk.py"):
+                self.assertTrue(path.is_file() and not path.is_symlink())
+                self.assertEqual(path.stat().st_mode & 0o777, 0o644)
+            sync_source = (ROOT / "sync_deploy.sh").read_text(encoding="utf-8")
+            self.assertIn('cp "${SOURCE_DIR}/tests/test_notify_dingtalk.py" "${STAGE_DIR}/tests/test_notify_dingtalk.py"', sync_source)
+            self.assertIn('"$PYTHON_BIN" "${STAGE_DIR}/tests/test_notify_dingtalk.py"', sync_source)
             self.assertFalse((release / "data").exists())
             self.assertTrue(os.access(release / "sync_deploy.sh", os.X_OK))
             for name in (
@@ -2732,6 +2742,44 @@ class PipelineStatusTest(unittest.TestCase):
                 "members": [],
             }],
         }), encoding="utf-8")
+
+    def test_daily_attempt_readiness_uses_extended_offset_with_system_python(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            data, logs, node_scripts = root / "data", root / "logs", root / "node"
+            data.mkdir()
+            node_scripts.mkdir()
+            for name in ("run_verify_new_groups.mjs", "fb_product_verify.mjs"):
+                (node_scripts / name).write_text("", encoding="utf-8")
+            completed = subprocess.run(
+                ["bash", str(ROOT / "run_daily_fb_verify.sh"), "--no-dingtalk"],
+                capture_output=True,
+                text=True,
+                env={
+                    **os.environ,
+                    "PATH": "/usr/bin:/opt/homebrew/bin:" + os.environ.get("PATH", ""),
+                    "PYTHON_BIN": "/usr/bin/python3",
+                    "NODE_BIN": "/opt/homebrew/bin/node",
+                    "FB_VERIFY_DATA_ROOT": str(data),
+                    "FB_VERIFY_LOG_DIR": str(logs),
+                    "FB_VERIFY_NODE_SCRIPTS_DIR": str(node_scripts),
+                    "FB_VERIFY_PUBLISH": "0",
+                    "FB_VERIFY_DINGTALK": "0",
+                    "FB_VERIFY_TEST_MODE": "1",
+                    "FB_VERIFY_TEST_EXIT_AFTER_BEGIN": "1",
+                },
+            )
+            self.assertEqual(completed.returncode, 91, completed.stderr)
+            records = list((data / "attempt_ledger").glob("*.json"))
+            self.assertEqual(len(records), 1)
+            started_at = json.loads(records[0].read_text(encoding="utf-8"))["started_at"]
+            self.assertRegex(started_at, r"[+-][0-9]{2}:[0-9]{2}$")
+            parsed = subprocess.run(
+                ["/usr/bin/python3", "-c", "from datetime import datetime; import sys; datetime.fromisoformat(sys.argv[1])", started_at],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(parsed.returncode, 0, parsed.stderr)
 
     @staticmethod
     def _supervisor_command(lock, target):

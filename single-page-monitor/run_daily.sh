@@ -51,9 +51,9 @@ PAGES_REPO="${SP_SINGLE_PAGE_PAGES_REPO:-https://github.com/tonyaiuser/babata-bo
 PAGES_DIR="${SP_SINGLE_PAGE_PAGES_DIR:-${DEPLOY_ROOT}/.pages/babata-board-pages-main}"
 PUBLIC_BASE="${SP_SINGLE_PAGE_PUBLIC_BASE:-https://tonyaiuser.github.io/babata-board/single-page-monitor}"
 SEND_DINGTALK="${SP_SINGLE_PAGE_SEND_DINGTALK:-1}"
-DINGTALK_CONFIG="${SP_SINGLE_PAGE_DINGTALK_CONFIG:-/Users/tonyaiuser/.openclaw/workspace/skills/sp-monitor/run.py}"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3)}"
 LOCK_HELPER="${SP_SINGLE_PAGE_LOCK_HELPER:-${SCRIPT_DIR}/scripts/locked_exec.py}"
+DINGTALK_HELPER="${SCRIPT_DIR}/scripts/notify_dingtalk.py"
 
 mkdir -p "${DATA_DIR}" "${LOG_DIR}" "${REPORTS_DIR}"
 
@@ -224,45 +224,17 @@ send_dingtalk() {
   if [[ "${SEND_DINGTALK}" != "1" ]]; then
     return
   fi
-  if [[ ! -f "${DINGTALK_CONFIG}" ]]; then
-    echo "DingTalk config not found: ${DINGTALK_CONFIG}" >&2
-    return
-  fi
 
-  DINGTALK_CONFIG="${DINGTALK_CONFIG}" \
   DING_LABEL="${label}" \
   DING_DATA_PATH="${data_path}" \
   DING_LATEST_URL="${PUBLIC_BASE}/latest.html" \
   DING_MONTH_URL="${PUBLIC_BASE}/${MONTH}.html" \
   DING_IMAGE_URL="${PUBLIC_BASE}/reports/latest/dashboard_desktop.png?v=${RUN_ID}" \
-  python3 <<'PY'
-import ast
-import base64
-import hashlib
-import hmac
+  "${PYTHON_BIN}" - <<'PY' | "${PYTHON_BIN}" "${DINGTALK_HELPER}"
 import json
 import os
-import time
-import urllib.parse
-import urllib.request
 from collections import Counter
 from pathlib import Path
-
-config_path = Path(os.environ["DINGTALK_CONFIG"])
-source = config_path.read_text(encoding="utf-8")
-module = ast.parse(source)
-values = {}
-for node in module.body:
-    if not isinstance(node, ast.Assign):
-        continue
-    for target in node.targets:
-        if isinstance(target, ast.Name) and target.id in {"DINGTALK_WEBHOOK", "DINGTALK_SECRET"}:
-            values[target.id] = ast.literal_eval(node.value)
-
-webhook = values.get("DINGTALK_WEBHOOK")
-secret = values.get("DINGTALK_SECRET")
-if not webhook or not secret:
-    raise SystemExit("missing DingTalk webhook or secret")
 
 data = json.loads(Path(os.environ["DING_DATA_PATH"]).read_text(encoding="utf-8"))
 summary = data.get("summary", {})
@@ -298,18 +270,7 @@ payload = {
         "text": text,
     },
 }
-timestamp = str(round(time.time() * 1000))
-string_to_sign = f"{timestamp}\n{secret}".encode("utf-8")
-sign = urllib.parse.quote_plus(base64.b64encode(hmac.new(secret.encode("utf-8"), string_to_sign, hashlib.sha256).digest()).decode("utf-8"))
-separator = "&" if "?" in webhook else "?"
-url = f"{webhook}{separator}timestamp={timestamp}&sign={sign}"
-request = urllib.request.Request(
-    url,
-    data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-    headers={"Content-Type": "application/json"},
-)
-with urllib.request.urlopen(request, timeout=20) as response:
-    print(response.read().decode("utf-8"))
+print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 PY
 }
 

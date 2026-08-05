@@ -353,9 +353,12 @@ if [[ ! -d "${DEPLOY_DIR}/data" ]] || [[ -L "${DEPLOY_DIR}/data" ]]; then
     "${DEPLOY_DIR}/data" >&2
   exit 66
 fi
-mkdir -p "${STAGE_DIR}/scripts"
+mkdir -p "${STAGE_DIR}/scripts" "${STAGE_DIR}/tests"
 rsync -a --delete --exclude '__pycache__/' --exclude '*.pyc' \
   "${SOURCE_DIR}/scripts/" "${STAGE_DIR}/scripts/"
+[[ -f "${STAGE_DIR}/scripts/notify_dingtalk.py" ]] || { printf 'staged release missing notifier\n' >&2; exit 2; }
+cp "${SOURCE_DIR}/tests/test_notify_dingtalk.py" "${STAGE_DIR}/tests/test_notify_dingtalk.py"
+chmod 0644 "${STAGE_DIR}/scripts/notify_dingtalk.py" "${STAGE_DIR}/tests/test_notify_dingtalk.py"
 for name in \
   README.md \
   deployment_entrypoint.sh \
@@ -403,14 +406,53 @@ finally:
 PY
 
 # Validate the complete isolated release before anything live is changed.
-"$PYTHON_BIN" - "${STAGE_DIR}/scripts" <<'PY'
-import pathlib, sys
+"$PYTHON_BIN" - "${STAGE_DIR}/scripts" "${STAGE_DIR}/tests/test_notify_dingtalk.py" <<'PY'
+import pathlib, stat, sys
 root = pathlib.Path(sys.argv[1])
 files = sorted(root.glob("*.py"))
 if not files:
     raise SystemExit("staged release has no Python scripts")
 for path in files:
     compile(path.read_bytes(), str(path), "exec")
+test_path = pathlib.Path(sys.argv[2])
+for path in (root / "notify_dingtalk.py", test_path):
+    details = path.lstat()
+    if not stat.S_ISREG(details.st_mode) or stat.S_IMODE(details.st_mode) != 0o644 or details.st_nlink != 1:
+        raise SystemExit(f"staged notifier artifact is unsafe: {path}")
+compile(test_path.read_bytes(), str(test_path), "exec")
+PY
+PYTHONDONTWRITEBYTECODE=1 "$PYTHON_BIN" "${STAGE_DIR}/tests/test_notify_dingtalk.py"
+HOME="${STAGE_DIR}/.validation-no-home" PYTHONDONTWRITEBYTECODE=1 "$PYTHON_BIN" - "${STAGE_DIR}/scripts/notify_dingtalk.py" <<'PY'
+import contextlib, io, os, runpy, sys
+target = sys.argv[1]
+production_home = "/Users/tonyaiuser"
+production_secret_dir = production_home + "/.openclaw/secrets/sp-monitor"
+credential_components = {".openclaw", "secrets", "sp-monitor", "report_delivery.json"}
+if os.path.exists(os.environ["HOME"]):
+    raise SystemExit("notifier validation HOME must not exist")
+def audit(event, args):
+    if event.startswith("socket."):
+        raise RuntimeError("network disabled during notifier validation")
+    if event == "open" and args:
+        try:
+            path = os.fspath(args[0])
+        except TypeError:
+            return
+        if isinstance(path, bytes):
+            path = os.fsdecode(path)
+        if path == production_home or path.startswith(production_secret_dir + "/") or \
+           (not os.path.isabs(path) and path in credential_components):
+            raise RuntimeError("credential read during notifier validation")
+sys.addaudithook(audit)
+sys.argv = [target, "--verified-count", "1", "--matched-count", "1", "--fresh-count", "0", "--multi-site-count", "0", "--matched-products-json", "[]", "--batch-url", "", "--dashboard-url", "https://example.invalid/dashboard", "--dry-run"]
+out, err = io.StringIO(), io.StringIO()
+with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+    try:
+        runpy.run_path(target, run_name="__main__")
+    except SystemExit as exc:
+        if exc.code not in (0, None): raise
+if out.getvalue() != 'NOTIFY_SUMMARY_JSON {"sent":false,"dry_run":true}\n' or err.getvalue():
+    raise SystemExit("staged notifier dry-run validation failed")
 PY
 found_node=0
 for file in "${STAGE_DIR}/scripts/"*.mjs; do

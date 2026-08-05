@@ -105,7 +105,7 @@ PAGES_PUBLISH_SCRIPT="${FB_VERIFY_PAGES_PUBLISH_SCRIPT:-${SCRIPTS_DIR}/publish_f
 PUBLIC_URL="${FB_VERIFY_PUBLIC_URL:-https://tonyaiuser.github.io/babata-board/fb_verify_dashboard.html}"
 PUBLISH="${FB_VERIFY_PUBLISH:-1}"
 
-# 钉钉推送：三态 send(真发) / dryrun(只打印消息体，不读凭证不发) / off(完全跳过)。
+# 钉钉推送：三态 send(真发) / dryrun(仅固定安全摘要，不读凭证不发) / off(完全跳过)。
 # --no-dingtalk 命令行参数 或 FB_VERIFY_DINGTALK=0 都等价于 off；
 # FB_VERIFY_DINGTALK_DRY_RUN=1 等价于 dryrun。手动验收测试时用这两个开关之一，避免真发消息打扰用户。
 DINGTALK_MODE="send"
@@ -121,7 +121,6 @@ for arg in "$@"; do
     DINGTALK_MODE="dryrun"
   fi
 done
-DINGTALK_CONFIG="${FB_VERIFY_DINGTALK_CONFIG:-/Users/tonyaiuser/.openclaw/workspace/skills/sp-monitor/run.py}"
 
 mkdir -p "$MONTH_DIR"
 
@@ -377,7 +376,13 @@ trap 'handle_termination 143' TERM
   --active-env FB_VERIFY_RUN_LOCK_ACTIVE \
   --label "FB verifier run" --busy-exit 75 --validate-only
 LOCK_ACQUIRED=1
-ATTEMPT_STARTED_AT="$(TZ=Asia/Shanghai date '+%Y-%m-%dT%H:%M:%S%z')"
+ATTEMPT_STARTED_AT="$("$PYTHON_BIN" - <<'PY'
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+print(datetime.now(ZoneInfo("Asia/Shanghai")).isoformat(timespec="seconds"))
+PY
+)"
 ATTEMPT_PHASE="build"
 signal_supervisor_ready
 
@@ -714,7 +719,7 @@ else
   log "--- step 7/7: notify_dingtalk (mode=${DINGTALK_MODE} verified=${VERIFIED_COUNT} matched=${MATCHED_COUNT}) ---"
 
   NOTIFY_ARGS=(--verified-count "$VERIFIED_COUNT" --matched-count "$MATCHED_COUNT" --fresh-count "$FRESH_COUNT" --multi-site-count "$MULTI_COUNT" \
-    --matched-products-json "$MATCHED_PRODUCTS_JSON" --batch-url "$BATCH_PUBLIC_URL" --dashboard-url "$PUBLIC_URL" --config "$DINGTALK_CONFIG")
+    --matched-products-json "$MATCHED_PRODUCTS_JSON" --batch-url "$BATCH_PUBLIC_URL" --dashboard-url "$PUBLIC_URL")
   [[ "$DINGTALK_MODE" == "dryrun" ]] && NOTIFY_ARGS+=(--dry-run)
 
   set +e

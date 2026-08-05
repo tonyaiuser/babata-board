@@ -1481,7 +1481,9 @@ fi
 "${NODE_BIN}" --check "${SOURCE_DIR}/build_dashboard.mjs"
 "${NODE_BIN}" --check "${SOURCE_DIR}/check_health.mjs"
 "${NODE_BIN}" --check "${SOURCE_DIR}/stable_check_health.mjs"
-"${PYTHON_BIN}" - "${LOCK_HELPER}" "${SOURCE_DIR}/scripts/rollback_cleanup.py" <<'PY'
+"${PYTHON_BIN}" - "${LOCK_HELPER}" "${SOURCE_DIR}/scripts/rollback_cleanup.py" \
+  "${SOURCE_DIR}/scripts/notify_dingtalk.py" \
+  "${SOURCE_DIR}/tests/test_notify_dingtalk.py" <<'PY'
 import pathlib, sys
 for raw in sys.argv[1:]:
     path = pathlib.Path(raw)
@@ -1496,7 +1498,9 @@ mkdir -p "${STAGE_DIR}/single-page-monitor/lib" "${STAGE_DIR}/single-page-monito
 cp "${REPO_ROOT}/top200_june_single_page_scan.mjs" "${STAGE_DIR}/"
 cp "${SOURCE_DIR}/lib/"*.mjs "${STAGE_DIR}/single-page-monitor/lib/"
 cp "${SOURCE_DIR}/tests/"*.mjs "${STAGE_DIR}/single-page-monitor/tests/"
+cp "${SOURCE_DIR}/tests/"*.py "${STAGE_DIR}/single-page-monitor/tests/"
 cp "${SOURCE_DIR}/scripts/locked_exec.py" "${SOURCE_DIR}/scripts/rollback_cleanup.py" \
+  "${SOURCE_DIR}/scripts/notify_dingtalk.py" \
   "${STAGE_DIR}/single-page-monitor/scripts/"
 for name in monitor.mjs build_dashboard.mjs check_health.mjs run_daily.sh sync_deploy.sh \
   stable_run_daily.sh stable_check_health.mjs config.json package.json package-lock.json README.md \
@@ -1508,7 +1512,22 @@ chmod 755 "${STAGE_DIR}/single-page-monitor/run_daily.sh" \
   "${STAGE_DIR}/single-page-monitor/stable_run_daily.sh" \
   "${STAGE_DIR}/single-page-monitor/stable_check_health.mjs" \
   "${STAGE_DIR}/single-page-monitor/scripts/locked_exec.py" \
-  "${STAGE_DIR}/single-page-monitor/scripts/rollback_cleanup.py"
+  "${STAGE_DIR}/single-page-monitor/scripts/rollback_cleanup.py" \
+  "${STAGE_DIR}/single-page-monitor/scripts/notify_dingtalk.py"
+
+"${PYTHON_BIN}" - \
+  "${STAGE_DIR}/single-page-monitor/scripts/notify_dingtalk.py" \
+  "${STAGE_DIR}/single-page-monitor/tests/test_notify_dingtalk.py" <<'PY'
+import pathlib, stat, sys
+expected = ((pathlib.Path(sys.argv[1]), 0o755), (pathlib.Path(sys.argv[2]), 0o644))
+for path, mode in expected:
+    value = path.lstat()
+    if path.is_symlink() or not stat.S_ISREG(value.st_mode):
+        raise SystemExit(f"staged notifier artifact is unsafe: {path}")
+    if stat.S_IMODE(value.st_mode) != mode:
+        raise SystemExit(f"staged notifier artifact has wrong mode: {path}")
+    compile(path.read_bytes(), str(path), "exec")
+PY
 
 (cd "${STAGE_DIR}/single-page-monitor" && "${NPM_BIN}" ci --omit=dev)
 
@@ -1519,6 +1538,8 @@ chmod 755 "${STAGE_DIR}/single-page-monitor/run_daily.sh" \
   export SP_SINGLE_PAGE_STAGE_SELFTEST=1
   run_npm_test_without_runtime_lock "${STAGE_DIR}/single-page-monitor"
 )
+(cd "${STAGE_DIR}/single-page-monitor" && \
+  "${PYTHON_BIN}" -m unittest -q tests.test_notify_dingtalk)
 "${NODE_BIN}" --check "${STAGE_DIR}/top200_june_single_page_scan.mjs"
 "${NODE_BIN}" --check "${STAGE_DIR}/single-page-monitor/monitor.mjs"
 "${NODE_BIN}" --check "${STAGE_DIR}/single-page-monitor/build_dashboard.mjs"

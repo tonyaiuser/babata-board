@@ -3,8 +3,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
-import https from "node:https";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { atomicWriteFile } from "./lib/file_utils.mjs";
 
@@ -14,6 +13,7 @@ const DATA_DIR = process.env.SP_SINGLE_PAGE_DATA_DIR || path.join(PROJECT_DIR, "
 const REPORTS_DIR = process.env.SP_SINGLE_PAGE_REPORTS_DIR || path.join(PROJECT_DIR, "reports");
 const STATUS_PATH = path.join(DATA_DIR, "run_status.json");
 const ALERT_STATE_PATH = path.join(DATA_DIR, "health_alert_state.json");
+const NOTIFY_HELPER = path.join(PROJECT_DIR, "scripts", "notify_dingtalk.py");
 
 function parseArgs(argv) {
   const out = new Map();
@@ -67,132 +67,85 @@ function pidAlive(pid) {
   }
 }
 
-function parsePythonConstant(source, name) {
-  const pattern = new RegExp(`${name}\\s*=\\s*["']([^"']+)["']`);
-  return source.match(pattern)?.[1] || "";
-}
-
-function loadDingTalkConfig() {
-  const webhook = process.env.SP_DINGTALK_WEBHOOK || process.env.DINGTALK_WEBHOOK || "";
-  const secret = process.env.SP_DINGTALK_SECRET || process.env.DINGTALK_SECRET || "";
-  if (webhook && secret) return { webhook, secret };
-
-  const configPath =
-    process.env.SP_SINGLE_PAGE_DINGTALK_CONFIG ||
-    "/Users/tonyaiuser/.openclaw/workspace/skills/sp-monitor/run.py";
-  try {
-    const source = fs.readFileSync(configPath, "utf8");
-    return {
-      webhook: parsePythonConstant(source, "DINGTALK_WEBHOOK"),
-      secret: parsePythonConstant(source, "DINGTALK_SECRET"),
-    };
-  } catch {
-    return { webhook: "", secret: "" };
+function invokeNotifier(title, text) {
+  const payload = {
+    msgtype: "markdown",
+    markdown: { title, text },
+  };
+  const result = spawnSync(
+    process.env.PYTHON_BIN || "python3",
+    [NOTIFY_HELPER],
+    {
+      cwd: PROJECT_DIR,
+      encoding: "utf8",
+      input: JSON.stringify(payload),
+      maxBuffer: 64 * 1024,
+      timeout: 25000,
+    },
+  );
+  if (result.error || result.signal || result.status !== 0) return "notify_failed";
+  if (String(result.stdout || "").trim() !== 'NOTIFY_SUMMARY_JSON {"sent":true}') {
+    return "notify_failed";
   }
-}
-
-function postJson(url, payload) {
-  return new Promise((resolve, reject) => {
-    const body = Buffer.from(JSON.stringify(payload), "utf8");
-    const req = https.request(
-      url,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Content-Length": body.length,
-        },
-        timeout: 20000,
-      },
-      (res) => {
-        const chunks = [];
-        res.on("data", (chunk) => chunks.push(chunk));
-        res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-      }
-    );
-    req.on("error", reject);
-    req.on("timeout", () => req.destroy(new Error("DingTalk request timed out")));
-    req.end(body);
-  });
+  return "sent";
 }
 
 async function sendDingTalk(message, alertKey, throttleMinutes) {
-  const state = readJson(ALERT_STATE_PATH, {});
-  const now = new Date();
-  const lastAt = state.last_alert_at ? new Date(state.last_alert_at) : null;
-  if (
-    state.last_alert_key === alertKey &&
-    lastAt &&
-    minutesBetween(now, lastAt) < throttleMinutes
-  ) {
-    return "throttled";
+  try {
+    const state = readJson(ALERT_STATE_PATH, {});
+    const now = new Date();
+    const lastAt = state.last_alert_at ? new Date(state.last_alert_at) : null;
+    if (
+      state.last_alert_key === alertKey &&
+      lastAt &&
+      minutesBetween(now, lastAt) < throttleMinutes
+    ) {
+      return "throttled";
+    }
+    const result = invokeNotifier("SP 单页监控健康检查", message);
+    if (result !== "sent") return result;
+    await atomicWriteFile(
+      ALERT_STATE_PATH,
+      JSON.stringify(
+        {
+          ...state,
+          last_alert_key: alertKey,
+          last_alert_at: now.toISOString(),
+          last_response: "sent",
+        },
+        null,
+        2
+      ) + "\n"
+    );
+    return "sent";
+  } catch {
+    return "notify_failed";
   }
-
-  const { webhook, secret } = loadDingTalkConfig();
-  if (!webhook || !secret) return "missing_config";
-
-  const timestamp = String(Date.now());
-  const sign = crypto
-    .createHmac("sha256", secret)
-    .update(`${timestamp}\n${secret}`)
-    .digest("base64");
-  const separator = webhook.includes("?") ? "&" : "?";
-  const url = `${webhook}${separator}timestamp=${timestamp}&sign=${encodeURIComponent(sign)}`;
-  const payload = {
-    msgtype: "markdown",
-    markdown: {
-      title: "SP 单页监控健康检查",
-      text: message,
-    },
-  };
-  const response = await postJson(url, payload);
-  await atomicWriteFile(
-    ALERT_STATE_PATH,
-    JSON.stringify(
-      {
-        ...state,
-        last_alert_key: alertKey,
-        last_alert_at: now.toISOString(),
-        last_response: response,
-      },
-      null,
-      2
-    ) + "\n"
-  );
-  return response;
 }
 
 async function sendRecovery(message) {
-  const state = readJson(ALERT_STATE_PATH, {});
-  if (!state.last_alert_key || state.last_recovery_for === state.last_alert_key) return "not_needed";
-
-  const { webhook, secret } = loadDingTalkConfig();
-  if (!webhook || !secret) return "missing_config";
-  const timestamp = String(Date.now());
-  const sign = crypto
-    .createHmac("sha256", secret)
-    .update(`${timestamp}\n${secret}`)
-    .digest("base64");
-  const separator = webhook.includes("?") ? "&" : "?";
-  const url = `${webhook}${separator}timestamp=${timestamp}&sign=${encodeURIComponent(sign)}`;
-  const response = await postJson(url, {
-    msgtype: "markdown",
-    markdown: { title: "SP 单页监控已恢复", text: message },
-  });
-  await atomicWriteFile(
-    ALERT_STATE_PATH,
-    JSON.stringify(
-      {
-        ...state,
-        last_recovery_for: state.last_alert_key,
-        last_recovery_at: new Date().toISOString(),
-        last_recovery_response: response,
-      },
-      null,
-      2
-    ) + "\n"
-  );
-  return response;
+  try {
+    const state = readJson(ALERT_STATE_PATH, {});
+    if (!state.last_alert_key || state.last_recovery_for === state.last_alert_key) return "not_needed";
+    const result = invokeNotifier("SP 单页监控已恢复", message);
+    if (result !== "sent") return result;
+    await atomicWriteFile(
+      ALERT_STATE_PATH,
+      JSON.stringify(
+        {
+          ...state,
+          last_recovery_for: state.last_alert_key,
+          last_recovery_at: new Date().toISOString(),
+          last_recovery_response: "sent",
+        },
+        null,
+        2
+      ) + "\n"
+    );
+    return "sent";
+  } catch {
+    return "notify_failed";
+  }
 }
 
 function evaluateHealth(options) {

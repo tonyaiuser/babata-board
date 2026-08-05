@@ -40,7 +40,7 @@ fb-verify/
     build_fb_verify_page.py   生成月累计看板 fb_verify_dashboard.html（自包含，无 CDN 依赖）
     publish_fb_pages.py       隔离的 Git Pages 发布事务：锁、commit/lease push 与远端字节核验
     compute_verify_stats.py   从今天验证过的 group_id 里算🔥新起投/多站跨投数量，供钉钉消息用
-    notify_dingtalk.py        独立钉钉推送：只读复用单页监控同一套 webhook/secret 获取方式
+    notify_dingtalk.py        独立钉钉推送：只读固定受保护的本地 JSON 凭证
   ~/.spspy-fb-verify/fb-verify/  launchd 实际运行目录（代码 + 实时 data，避开 Desktop TCC）
   data/<YYYY-MM>/             月度状态，月滚动自动新建
     unique_products.json      去重后的产品组（query / members / 是否已验证）
@@ -154,11 +154,13 @@ macOS 的 launchd 进程可能不允许 Node 读取 Desktop 下的脚本和 JSON
 严格限定为 FB 月度页及其当月批次页，不会碰仓库里的 `single-page-monitor/`、
 `sp_picker_dashboard.html` 等其它内容。
 
-钉钉推送同理：**代码完全独立**（`scripts/notify_dingtalk.py`，不 import、不修改单页监控的
-`run.py`），只是只读复用同一份凭证获取方式——用 `ast` 静态解析
-`~/.openclaw/workspace/skills/sp-monitor/run.py` 里的 `DINGTALK_WEBHOOK` / `DINGTALK_SECRET`
-两个常量，再用同一套 HMAC-SHA256 签名逻辑直接调 webhook。webhook/secret 不会被硬编码、不会被
-打印到 stdout/stderr/日志里。
+钉钉推送同理：**代码完全独立**（`scripts/notify_dingtalk.py`，不 import、不修改单页监控代码）。
+它固定读取 `~/.openclaw/secrets/sp-monitor/report_delivery.json`：文件必须是严格 UTF-8 的规范 JSON，
+键仅为按字典序排列的 `secret`、`webhook`，使用紧凑分隔符且恰有一个结尾换行。两者均不超过 4096
+字符；webhook 必须是 `https://oapi.dingtalk.com/robot/send` 并且仅有一个非空 `access_token`。最终凭证
+目录必须为 owner 的 `0700`，文件必须是 owner 的普通 `0600` 文件且 nlink 为 1；路径、父目录与绑定
+都会严格校验，且不支持命令行或环境变量覆盖。推送使用 HMAC-SHA256 签名；webhook、secret、消息正文和响应正文
+都不会输出到 stdout、stderr 或日志。
 
 ## 月滚动
 
@@ -197,33 +199,23 @@ macOS 的 launchd 进程可能不允许 Node 读取 Desktop 下的脚本和 JSON
 - 任何一步失败（`set -euo pipefail`），流水线会中止且**不写** stamp，锁会被释放，明天/手动
   重跑都会重新尝试。失败详情看 `.err.log`。
 
-## 手动命令
+## 当前暂停红线
+
+`com.spspy.fb-verify` 和 `com.spspy.single-page-fb-nightly` 必须持续保持**禁用且未加载**。在用户明确解除暂停并完成一次新的审查之前，禁止运行 daily/nightly 脚本，禁止设置或使用 `FB_VERIFY_ALLOW_SAME_DAY`，也禁止任何 launchctl 的 bootstrap、kickstart、enable、load 或 reload 操作。
+
+暂停期间仅允许以下只读证据检查：
 
 ```bash
-# 源码修改后先同步到线上隐藏目录
+launchctl print gui/$(id -u)/com.spspy.fb-verify
+launchctl print gui/$(id -u)/com.spspy.single-page-fb-nightly
+launchctl print-disabled gui/$(id -u)
+ps ax -o pid,ppid,command | grep '[f]b-verify'
+```
+
+只有上述证据证明两个任务均未加载且不存在 FB 进程后，才允许执行源码目录中的代码同步；该同步不得执行 daily/nightly：
+
+```bash
 /Users/tonyaiuser/Desktop/spspy/fb-verify/sync_deploy.sh
-
-# 正常手动跑一次（等价于 launchd 会做的事）
-/Users/tonyaiuser/.spspy-fb-verify/fb-verify/run_daily_fb_verify.sh
-
-# 只想验证逻辑、不想真的发布到 GitHub Pages
-FB_VERIFY_PUBLISH=0 /Users/tonyaiuser/.spspy-fb-verify/fb-verify/run_daily_fb_verify.sh
-
-# 手动测试/验收时，不想真的发钉钉打扰用户：两种方式二选一
-/Users/tonyaiuser/.spspy-fb-verify/fb-verify/run_daily_fb_verify.sh --no-dingtalk          # 完全跳过这一步
-/Users/tonyaiuser/.spspy-fb-verify/fb-verify/run_daily_fb_verify.sh --dingtalk-dry-run     # 照常构造消息体并打印，但不读凭证、不真发
-
-# 仅补跑某一天的持久单页事件（正常情况下不需要；常规运行会自动补所有未处理项）
-FB_VERIFY_TARGET_DATE=2026-07-09 /Users/tonyaiuser/.spspy-fb-verify/fb-verify/run_daily_fb_verify.sh
-
-# 想强制同日增量重跑（会先原子失效旧 success tuple）
-FB_VERIFY_ALLOW_SAME_DAY=1 /Users/tonyaiuser/.spspy-fb-verify/fb-verify/run_daily_fb_verify.sh
-
-# 查看 launchd 任务状态
-launchctl list | grep fb-verify
-
-# 手动触发一次 launchd 任务（不用等到 13:30）
-launchctl kickstart -k gui/$(id -u)/com.spspy.fb-verify
 ```
 
 可调的环境变量（默认值见 `run_daily_fb_verify.sh` 顶部）：
@@ -233,7 +225,7 @@ launchctl kickstart -k gui/$(id -u)/com.spspy.fb-verify
 | `FB_VERIFY_MONITOR_EVENTS_JSONL` | 首选持久事件流路径 | 单页监控部署目录 `data/events.jsonl` |
 | `FB_VERIFY_NEW_HITS_CSV` | 事件流不存在时的 CSV 兜底路径 | 单页监控部署目录当月 `new_hits.csv` |
 | `FB_VERIFY_EVENT_CUTOFF_FILE` | 上线水位线文件（常规任务忽略此前事件） | 当前运行目录 `data/event_ingest_cutover_at.txt` |
-| `FB_VERIFY_ALLOW_SAME_DAY` | `1`=允许当天第二次增量 FB 流程（夜间编排专用） | 0 |
+| `FB_VERIFY_ALLOW_SAME_DAY` | 当前暂停期间禁止设置或使用；解除暂停并审查后才可评估 | 0 |
 | `FB_VERIFY_NODE_SCRIPTS_DIR` | Node FB 脚本目录（通常无需设置） | 当前运行目录的 `scripts/` |
 | `FB_VERIFY_MAX_GROUPS` | 单日最多查询组数 | 40 |
 | `FB_VERIFY_BLANK_STREAK` | 连续空结果熔断阈值 | 5 |
@@ -244,8 +236,7 @@ launchctl kickstart -k gui/$(id -u)/com.spspy.fb-verify
 | `FB_VERIFY_IMAGE_WALL_TIMEOUT_SECONDS` | 抓图整步 wall-clock 上限；必须是有限数，生产范围 60–1200 秒 | 1200 |
 | `FB_VERIFY_IMAGE_WATCHDOG_GRACE_SECONDS` | 抓图进程组 TERM 后升级 KILL 的宽限；必须是有限数，生产范围 1–30 秒 | 10 |
 | `FB_VERIFY_DINGTALK` | 是否启用钉钉推送（`0`=等同 `--no-dingtalk`） | 1 |
-| `FB_VERIFY_DINGTALK_DRY_RUN` | `1`=等同 `--dingtalk-dry-run`（只打印不真发） | 0 |
-| `FB_VERIFY_DINGTALK_CONFIG` | 读取 webhook/secret 的配置文件路径 | 单页监控同一份 `sp-monitor/run.py` |
+| `FB_VERIFY_DINGTALK_DRY_RUN` | `1`=等同 `--dingtalk-dry-run`（只输出安全摘要，不真发） | 0 |
 
 命令行参数（追加在脚本后面，launchd 正常调度不会传）：`--no-dingtalk` / `--dingtalk-dry-run`。
 
