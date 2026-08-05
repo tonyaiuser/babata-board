@@ -1,0 +1,19 @@
+{
+  "name": "sp-single-page-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "scan": "node monitor.mjs",
+    "dashboard": "node build_dashboard.mjs",
+    "daily": "bash run_daily.sh",
+    "health": "node check_health.mjs",
+    "health:notify": "node check_health.mjs --notify yes",
+    "scan:june": "node monitor.mjs --month 2026-06 --limit 200 --workers 6",
+    "dashboard:june": "node build_dashboard.mjs --month 2026-06 --workers 6"
+  },
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}

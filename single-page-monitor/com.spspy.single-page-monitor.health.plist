@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.spspy.single-page-monitor.health</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd /Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor &amp;&amp; /usr/bin/env node check_health.mjs --notify yes</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>1800</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor/logs/health.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor/logs/health.err.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>

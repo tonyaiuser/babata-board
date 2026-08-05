@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.spspy.fb-verify</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify &amp;&amp; ./run_daily_fb_verify.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>13</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/tonyaiuser/.openclaw/logs/automation/fb_verify.launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/tonyaiuser/.openclaw/logs/automation/fb_verify.launchd.err.log</string>
+</dict>
+</plist>

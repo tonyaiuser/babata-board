@@ -1,0 +1,20 @@
+{
+  "month": "",
+  "limit": 200,
+  "workers": 6,
+  "max_json_pages": 6,
+  "max_created": 80,
+  "max_updated": 35,
+  "checkpoint_every": 10,
+  "fetch_mode": "auto",
+  "timeout": 30000,
+  "page_timeout": 12000,
+  "min_request_interval_ms": 900,
+  "request_jitter_ms": 500,
+  "backoff_base_ms": 2000,
+  "backoff_max_ms": 60000,
+  "max_consecutive_failures": 3,
+  "cache_ttl_hours": 18,
+  "cache_max_entries": 50000,
+  "update_validation": "no"
+}
