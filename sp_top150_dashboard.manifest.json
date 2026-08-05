@@ -1,0 +1,41 @@
+{
+  "expected_date": "2026-08-05",
+  "generated_at": "2026-08-05T03:34:35.238948+00:00",
+  "html_sha256": "b64cad046a181661f3dbe2f8f6ba6cc9101634c220753bbc2de181937da07907",
+  "outputs": [
+    {
+      "bytes": 303347,
+      "name": "sp_top150_dashboard.html",
+      "sha256": "b64cad046a181661f3dbe2f8f6ba6cc9101634c220753bbc2de181937da07907"
+    },
+    {
+      "bytes": 303347,
+      "name": "sp_picker_dashboard.html",
+      "sha256": "b64cad046a181661f3dbe2f8f6ba6cc9101634c220753bbc2de181937da07907"
+    }
+  ],
+  "producer": "build_top150_dashboard",
+  "product_count": 227,
+  "schema_version": 1,
+  "source": {
+    "bytes": 358139,
+    "name": "sp_hotlist_2026-08-05.json",
+    "path": "/Users/tonyaiuser/.openclaw/workspace/sp_hotlist_2026-08-05.json",
+    "producer": "sp-monitor",
+    "schema_version": 2,
+    "sha256": "9679b53c9aad1096df859bba87911e0c30b2a0662fcc02bc3cee07b02e98e4d5"
+  },
+  "source_date": "2026-08-05",
+  "source_hash": "9679b53c9aad1096df859bba87911e0c30b2a0662fcc02bc3cee07b02e98e4d5",
+  "source_health": {
+    "contract_profile": "sp-hotlist-v2-top150-health",
+    "results_count": 227,
+    "sites_successful": 149,
+    "sites_total": 150,
+    "success_ratio": 0.9933,
+    "top20_sites_successful": 20,
+    "top20_sites_total": 20,
+    "top20_success_ratio": 1.0
+  },
+  "template_sha256": "d01ba26a59afec8cfc6c4a4381b6ec47f6b5f684eb418815fcecba7824d42c4f"
+}
