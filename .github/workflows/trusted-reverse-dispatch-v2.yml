@@ -1,0 +1,35 @@
+name: Dispatch trusted reverse producer v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Full candidate commit SHA (not a branch name).
+        required: true
+        type: string
+      candidate_ref:
+        description: Candidate ref to bind in the receipt.
+        required: true
+        type: string
+      candidate_tree:
+        description: Full candidate tree SHA.
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: trusted-reverse-dispatch-v2-${{ github.repository }}-${{ inputs.candidate_sha }}
+  cancel-in-progress: false
+
+jobs:
+  invoke:
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/trusted-reverse-producer-v2.yml
+    with:
+      candidate_sha: ${{ inputs.candidate_sha }}
+      candidate_ref: ${{ inputs.candidate_ref }}
+      candidate_tree: ${{ inputs.candidate_tree }}

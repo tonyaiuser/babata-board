@@ -1,0 +1,66 @@
+[
+  {
+    "attestation": {
+      "bundle": {
+        "mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json"
+      }
+    },
+    "verificationResult": {
+      "mediaType": "application/vnd.dev.sigstore.verificationresult+json;version=0.1",
+      "signature": {
+        "certificate": {
+          "certificateIssuer": "CN=sigstore-intermediate,O=sigstore.dev",
+          "subjectAlternativeName": "https://github.com/owner/signer/.github/workflows/trusted-reverse-producer-v2.yml@refs/heads/main",
+          "issuer": "https://token.actions.githubusercontent.com",
+          "sourceRepositoryURI": "https://github.com/owner/repo",
+          "sourceRepositoryDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceRepositoryRef": "refs/heads/main",
+          "sourceRepositoryIdentifier": "101",
+          "buildSignerURI": "https://github.com/owner/signer/.github/workflows/trusted-reverse-producer-v2.yml@refs/heads/main",
+          "buildSignerDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "buildConfigURI": "https://github.com/owner/repo/.github/workflows/trusted-reverse-dispatch-v2.yml@refs/heads/main",
+          "buildConfigDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "githubWorkflowTrigger": "workflow_dispatch",
+          "githubWorkflowSHA": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "githubWorkflowRepository": "owner/repo",
+          "githubWorkflowRef": "refs/heads/main",
+          "buildTrigger": "workflow_dispatch",
+          "runnerEnvironment": "github-hosted",
+          "runInvocationURI": "https://github.com/owner/repo/actions/runs/1/attempts/1"
+        }
+      },
+      "verifiedTimestamps": [
+        {"type": "Tlog", "uri": "https://rekor.sigstore.dev", "timestamp": "2026-08-09T00:00:00Z"}
+      ],
+      "statement": {
+        "_type": "https://in-toto.io/Statement/v1",
+        "subject": [
+          {"name": "canonical-reverse.tar", "digest": {"sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}}
+        ],
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "predicate": {
+          "buildDefinition": {
+            "buildType": "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1",
+            "externalParameters": {
+              "workflow": {
+                "ref": "refs/heads/main",
+                "repository": "https://github.com/owner/repo",
+                "path": "/.github/workflows/trusted-reverse-dispatch-v2.yml"
+              }
+            },
+            "internalParameters": {
+              "github": {"event_name": "workflow_dispatch", "repository_id": "101"}
+            },
+            "resolvedDependencies": [
+              {"uri": "git+https://github.com/owner/repo@refs/heads/main", "digest": {"gitCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+            ]
+          },
+          "runDetails": {
+            "builder": {"id": "https://github.com/actions/runner/github-hosted"},
+            "metadata": {"invocationId": "https://github.com/owner/repo/actions/runs/1/attempts/1"}
+          }
+        }
+      }
+    }
+  }
+]

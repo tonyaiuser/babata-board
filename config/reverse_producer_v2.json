@@ -1,0 +1,34 @@
+{
+  "schema": "spspy-reverse-producer/v2",
+  "workflow": {
+    "repository": "tonyaiuser/babata-board",
+    "path": ".github/workflows/trusted-reverse-producer-v2.yml",
+    "authority_ref": "refs/heads/main",
+    "signer_workflow_ref": "tonyaiuser/babata-board/.github/workflows/trusted-reverse-producer-v2.yml@refs/heads/main",
+    "blob_oid": null
+  },
+  "limits": {
+    "max_file_bytes": 67108864,
+    "max_payload_bytes": 268435456,
+    "max_entries": 4096,
+    "max_path_bytes": 240
+  },
+  "allowlist": [
+    {
+      "path": "single-page-monitor",
+      "kind": "directory"
+    },
+    {
+      "path": "scripts/report_delivery_outbox_v1.py",
+      "kind": "file"
+    },
+    {
+      "path": "scripts/report_delivery_adapters_v1.py",
+      "kind": "file"
+    }
+  ],
+  "outputs": [
+    "release-payload.tar",
+    "release-receipt.json"
+  ]
+}
