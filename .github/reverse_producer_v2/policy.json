@@ -1,0 +1,50 @@
+{
+  "archive": {
+    "end_of_archive_blocks": 2,
+    "format": "ustar-v1",
+    "gid": 0,
+    "mode": "0600",
+    "mtime": 0,
+    "ordering": "utf-8-bytewise",
+    "regular_files_only": true,
+    "uid": 0
+  },
+  "inventory": {
+    "digest": "sha256",
+    "field_separator": "nul",
+    "fields": [
+      "kind",
+      "utf8_path",
+      "content_sha256_hex",
+      "size_decimal"
+    ],
+    "format": "spspy-file-inventory-v1",
+    "kind": "file",
+    "ordering": "utf-8-bytewise",
+    "record_separator": "lf"
+  },
+  "limits": {
+    "max_entries": 4096,
+    "max_file_bytes": 67108864,
+    "max_path_bytes": 240,
+    "max_payload_bytes": 268435456
+  },
+  "paths": {
+    "allowed_files": [
+      "scripts/report_delivery_adapters_v1.py",
+      "scripts/report_delivery_outbox_v1.py"
+    ],
+    "allowed_prefixes": [
+      "single-page-monitor/"
+    ],
+    "required_files": [
+      "scripts/report_delivery_adapters_v1.py",
+      "scripts/report_delivery_outbox_v1.py"
+    ],
+    "required_prefixes": [
+      "single-page-monitor/"
+    ]
+  },
+  "schema": "spspy.trusted-reverse-producer-v2.release-policy",
+  "version": 1
+}
