@@ -1,0 +1,176 @@
+{
+  "baseline": {
+    "live_entrypoint_sha256": "1f46674bf365bb7b7bc4f59aa581c4ac1e7776b80f447f72cf898d28a7145e00"
+  },
+  "bundle": [
+    {
+      "mode": "0644",
+      "role": "helper",
+      "source": "scripts/report_delivery_outbox_v1.py",
+      "target": "scripts/report_delivery_outbox_v1.py"
+    },
+    {
+      "mode": "0644",
+      "role": "helper",
+      "source": "scripts/report_delivery_adapters_v1.py",
+      "target": "scripts/report_delivery_adapters_v1.py"
+    },
+    {
+      "mode": "0644",
+      "role": "entrypoint",
+      "source": "skills/sp-monitor/run.py",
+      "target": "run.py"
+    }
+  ],
+  "deployment": {
+    "allow_window": {
+      "end": "11:20",
+      "start": "10:30",
+      "timezone": "Asia/Shanghai"
+    },
+    "credential_names": [
+      "DINGTALK_WEBHOOK",
+      "DINGTALK_SECRET"
+    ],
+    "dependent_consumers": [
+      {
+        "configured_argv": [
+          "/bin/bash",
+          "-lc",
+          "cd /Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor && ./run_daily.sh"
+        ],
+        "labels": [
+          "com.spspy.single-page-monitor"
+        ],
+        "name": "single-page-monitor",
+        "plist_sha256": "bd2d7de333e4f82a7e6731dea31528edd51944bc0eb5eb9be9a29ef58cd84edc",
+        "process_match_tokens": [
+          "cd /Users/tonyaiuser/.spspy-single-page-monitor/single-page-monitor && ./run_daily.sh",
+          "/Users/tonyaiuser/.spspy-single-page-monitor/releases/20260802T010448Z-11533/single-page-monitor/run_daily.sh",
+          "/Users/tonyaiuser/.spspy-single-page-monitor/releases/20260802T010448Z-11533/single-page-monitor/check_health.mjs"
+        ],
+        "source_files": [
+          {
+            "path": "~/.spspy-single-page-monitor/single-page-monitor/run_daily.sh",
+            "sha256": "REQUIRED_AT_DEPLOY"
+          },
+          {
+            "path": "~/.spspy-single-page-monitor/releases/20260802T010448Z-11533/single-page-monitor/run_daily.sh",
+            "sha256": "REQUIRED_AT_DEPLOY"
+          },
+          {
+            "path": "~/.spspy-single-page-monitor/releases/20260802T010448Z-11533/single-page-monitor/check_health.mjs",
+            "sha256": "REQUIRED_AT_DEPLOY"
+          }
+        ],
+        "unresolved": true
+      },
+      {
+        "configured_argv": [
+          "/bin/bash",
+          "-lc",
+          "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_daily_fb_verify.sh"
+        ],
+        "labels": [
+          "com.spspy.fb-verify"
+        ],
+        "name": "fb-verify",
+        "plist_sha256": "691bfbc444eb85835d572ab0182a2d942b78b98ef223d06f59a856fc0e5f8d56",
+        "process_match_tokens": [
+          "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_daily_fb_verify.sh",
+          "/Users/tonyaiuser/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/run_daily_fb_verify.sh",
+          "/Users/tonyaiuser/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/scripts/notify_dingtalk.py"
+        ],
+        "source_files": [
+          {
+            "path": "~/.spspy-fb-verify/fb-verify/run_daily_fb_verify.sh",
+            "sha256": "6410d6e5554714a1dd37372390cb83199b55a03359c59753f74f615e56e68594"
+          },
+          {
+            "path": "~/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/run_daily_fb_verify.sh",
+            "sha256": "faea85eead6d5ec8766fb4ecb7f49eb471e7293c52e4f007b1a295c9273c1ecf"
+          },
+          {
+            "path": "~/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/scripts/notify_dingtalk.py",
+            "sha256": "REQUIRED_AT_DEPLOY"
+          }
+        ],
+        "unresolved": true
+      },
+      {
+        "configured_argv": [
+          "/bin/bash",
+          "-lc",
+          "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_nightly_single_page_fb_verify.sh"
+        ],
+        "labels": [
+          "com.spspy.single-page-fb-nightly"
+        ],
+        "name": "single-page-fb-nightly",
+        "plist_sha256": "8648b05d65f29993e42be48453e252c3710c22af1f09767af74da2990d1108da",
+        "process_match_tokens": [
+          "cd /Users/tonyaiuser/.spspy-fb-verify/fb-verify && ./run_nightly_single_page_fb_verify.sh",
+          "/Users/tonyaiuser/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/run_nightly_single_page_fb_verify.sh",
+          "/Users/tonyaiuser/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/scripts/notify_dingtalk.py"
+        ],
+        "source_files": [
+          {
+            "path": "~/.spspy-fb-verify/fb-verify/run_nightly_single_page_fb_verify.sh",
+            "sha256": "6410d6e5554714a1dd37372390cb83199b55a03359c59753f74f615e56e68594"
+          },
+          {
+            "path": "~/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/run_nightly_single_page_fb_verify.sh",
+            "sha256": "7ea980744fbab6f8af7413ca7796148e9f729aa7574bfed12e1c2ba5efba6e2a"
+          },
+          {
+            "path": "~/.spspy-fb-verify/fb-verify/releases/20260804T171204Z-23480/scripts/notify_dingtalk.py",
+            "sha256": "REQUIRED_AT_DEPLOY"
+          }
+        ],
+        "unresolved": true
+      }
+    ],
+    "journal_name": "release-journal.json",
+    "live_root": "~/.openclaw/workspace/skills/sp-monitor",
+    "lock_path": "~/.spspy-code-backups/.sp-monitor-release.lock",
+    "plist": {
+      "arguments": [
+        "--send"
+      ],
+      "calendar": {
+        "Hour": 11,
+        "Minute": 30
+      },
+      "entrypoint": "~/.openclaw/workspace/skills/sp-monitor/run.py",
+      "entrypoint_index": 1,
+      "environment_variable_keys": [
+        "HOME",
+        "OPENCLAW_BIN",
+        "PATH"
+      ],
+      "interpreter": "/opt/homebrew/bin/python3",
+      "label": "ai.openclaw.sp.morning",
+      "plist_keys": [
+        "EnvironmentVariables",
+        "Label",
+        "ProgramArguments",
+        "RunAtLoad",
+        "StandardErrorPath",
+        "StandardOutPath",
+        "StartCalendarInterval"
+      ],
+      "plist_sha256": "52c1010edc38cdc17a0aa01081c0209e39f30edcb0905d868f384fb8ae37f525",
+      "run_at_load": false
+    },
+    "policy_path": "config/sp_monitor_release_manifest_v1.json",
+    "rollback_root": "~/.spspy-code-backups/sp-monitor",
+    "runtime_manifest_target": "runtime-release.json",
+    "secret_path": "~/.openclaw/secrets/sp-monitor/report_delivery.json"
+  },
+  "policy_name": "sp-monitor-release-v1",
+  "repository": {
+    "required_ref": "refs/heads/main"
+  },
+  "runtime_schema": "sp-monitor-runtime-release/v1",
+  "schema": "sp-monitor-source-policy/v1"
+}
