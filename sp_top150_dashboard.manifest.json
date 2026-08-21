@@ -1,35 +1,35 @@
 {
-  "expected_date": "2026-08-20",
-  "generated_at": "2026-08-20T05:15:05.494993+00:00",
-  "html_sha256": "1970aa4a7df7a4565bc34e0fe4cdf46f25217b34fea7af5bcf34cfe43c552fa8",
+  "expected_date": "2026-08-21",
+  "generated_at": "2026-08-21T03:35:50.407498+00:00",
+  "html_sha256": "bc383dd5bb83651b0ab4398af072096048d1a8891457a590089d0242354f4308",
   "outputs": [
     {
-      "bytes": 464382,
+      "bytes": 467232,
       "name": "sp_top150_dashboard.html",
-      "sha256": "1970aa4a7df7a4565bc34e0fe4cdf46f25217b34fea7af5bcf34cfe43c552fa8"
+      "sha256": "bc383dd5bb83651b0ab4398af072096048d1a8891457a590089d0242354f4308"
     },
     {
-      "bytes": 464382,
+      "bytes": 467232,
       "name": "sp_picker_dashboard.html",
-      "sha256": "1970aa4a7df7a4565bc34e0fe4cdf46f25217b34fea7af5bcf34cfe43c552fa8"
+      "sha256": "bc383dd5bb83651b0ab4398af072096048d1a8891457a590089d0242354f4308"
     }
   ],
   "producer": "build_top150_dashboard",
-  "product_count": 358,
+  "product_count": 360,
   "schema_version": 1,
   "source": {
-    "bytes": 519982,
-    "name": "sp_hotlist_2026-08-20.json",
-    "path": "/Users/tonyaiuser/.openclaw/workspace/sp_hotlist_2026-08-20.json",
+    "bytes": 521731,
+    "name": "sp_hotlist_2026-08-21.json",
+    "path": "/Users/tonyaiuser/.openclaw/workspace/sp_hotlist_2026-08-21.json",
     "producer": "sp-monitor",
     "schema_version": 2,
-    "sha256": "f46e0a6d6525361c179c47f718d9269a30e3b01d62da4a9d28234935b1708559"
+    "sha256": "77b75bff71b981226f832dcce238f6b45ddad5bb0569c4a5b6370527b2c5b503"
   },
-  "source_date": "2026-08-20",
-  "source_hash": "f46e0a6d6525361c179c47f718d9269a30e3b01d62da4a9d28234935b1708559",
+  "source_date": "2026-08-21",
+  "source_hash": "77b75bff71b981226f832dcce238f6b45ddad5bb0569c4a5b6370527b2c5b503",
   "source_health": {
     "contract_profile": "sp-hotlist-v2-top150-health",
-    "results_count": 358,
+    "results_count": 360,
     "sites_successful": 148,
     "sites_total": 150,
     "success_ratio": 0.9867,
