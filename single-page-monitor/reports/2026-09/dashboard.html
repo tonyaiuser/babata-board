@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="language-blocked">
+<head>
+<meta charset="UTF-8">
+<script>
+(() => {
+  try {
+    const primary = navigator.languages?.[0] || navigator.language || "";
+    if (/^en(?:-|$)/i.test(primary)) {
+      document.documentElement.classList.remove("language-blocked");
+      document.documentElement.classList.add("language-allowed");
+    }
+  } catch {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SP 单页监控看板 2026-09</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f3f4f6;color:#111827}
+html:not(.language-allowed) body{overflow:hidden;background:#fff;color:#111827}
+html:not(.language-allowed) #dashboard-app{display:none!important}
+.language-not-found{display:none;min-height:100vh;padding:24px;align-items:center;justify-content:center;text-align:center}
+html:not(.language-allowed) .language-not-found{display:flex}
+.language-not-found-code{font-size:64px;line-height:1;font-weight:800;color:#111827}
+.language-not-found h1{margin:14px 0 0;font-size:22px;line-height:1.3;color:#374151}
+body.auth-locked{overflow:hidden;background:#111827}
+html:not(.language-allowed) body.auth-locked{background:#fff;color:#111827}
+body.auth-locked .header,body.auth-locked .controls,body.auth-locked .main{filter:blur(8px);opacity:.18;pointer-events:none;user-select:none}
+body.auth-unlocked .auth-gate{display:none}
+button,input,select{font:inherit}
+.auth-gate{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(17,24,39,.96),rgba(37,99,235,.88));padding:20px}
+.auth-card{width:min(430px,100%);background:#fff;border:1px solid rgba(255,255,255,.24);border-radius:8px;box-shadow:0 24px 80px rgba(0,0,0,.35);padding:24px}
+.auth-kicker{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#2563eb;margin-bottom:8px}
+.auth-title{font-size:22px;line-height:1.2;font-weight:800;margin:0;color:#111827}
+.auth-copy{font-size:13px;line-height:1.5;color:#4b5563;margin:10px 0 18px}
+.auth-form{display:grid;grid-template-columns:1fr auto;gap:8px}
+.auth-input{min-width:0;border:1px solid #d1d5db;border-radius:8px;padding:10px 11px;color:#111827;background:#fff}
+.auth-input:focus{outline:2px solid rgba(37,99,235,.24);border-color:#2563eb}
+.auth-submit{border:1px solid #2563eb;border-radius:8px;background:#2563eb;color:#fff;font-weight:800;padding:10px 14px;cursor:pointer;white-space:nowrap}
+.auth-error{min-height:18px;margin-top:10px;font-size:12px;font-weight:700;color:#dc2626}
+.auth-note{margin-top:14px;font-size:12px;color:#6b7280}
+.header{background:#17202f;color:#fff;padding:18px 24px 20px;border-bottom:1px solid #0f172a}
+.header-inner{max-width:1440px;margin:0 auto}
+.topline{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+h1{font-size:22px;line-height:1.2;margin:0 0 6px;font-weight:750;letter-spacing:0}
+.meta{font-size:13px;color:#cbd5e1}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.stat{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:8px 11px;min-width:108px}
+.stat b{display:block;font-size:20px;line-height:1.1}
+.stat span{font-size:12px;color:#cbd5e1}
+.controls{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #e5e7eb}
+.controls-inner{max-width:1440px;margin:0 auto;padding:12px 24px;display:grid;grid-template-columns:minmax(220px,1fr) auto auto;gap:10px;align-items:center}
+.search{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:9px 11px;color:#111827;background:#fff}
+.tabs{display:flex;gap:6px;overflow:auto}
+.tab{border:1px solid #d1d5db;background:#f9fafb;color:#374151;border-radius:8px;padding:8px 10px;white-space:nowrap;cursor:pointer}
+.tab.active{background:#2563eb;border-color:#2563eb;color:#fff}
+.toggle{display:flex;align-items:center;gap:7px;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;background:#fff;color:#374151;font-size:13px;font-weight:650;white-space:nowrap}
+.toggle input{width:16px;height:16px}
+.main{max-width:1440px;margin:0 auto;padding:18px 24px 28px}
+.layout{display:block}
+.badge{display:inline-flex;align-items:center;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge-top{background:#fef3c7;color:#92400e}
+.badge-core{background:#dbeafe;color:#1d4ed8}
+.badge-count{background:#ecfdf5;color:#047857}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.result-title{font-size:15px;font-weight:750;color:#374151}
+.result-title span{color:#2563eb}
+.result-note{font-size:12px;color:#64748b;margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:13px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.image-wrap{position:relative;aspect-ratio:4/3;background:#eef2f7;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.image-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.placeholder{font-size:13px;color:#64748b;padding:16px;text-align:center}
+.rank{position:absolute;left:8px;top:8px;background:rgba(15,23,42,.78);color:#fff;border-radius:999px;font-size:11px;font-weight:750;padding:3px 7px}
+.tier{position:absolute;right:8px;top:8px}
+.body{padding:12px}
+.title{font-size:14px;font-weight:750;line-height:1.35;min-height:38px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.desc{font-size:12px;line-height:1.4;color:#64748b;margin-top:7px;min-height:34px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{border-radius:6px;padding:4px 6px;font-size:11px;font-weight:650;background:#f3f4f6;color:#374151}
+.chip-price{background:#ecfdf5;color:#047857}
+.chip-date{background:#fef3c7;color:#92400e}
+.chip-score{background:#f5f3ff;color:#6d28d9}
+.chip-signal{background:#fee2e2;color:#b91c1c}
+.chip-dup{background:#e0f2fe;color:#0369a1}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.btn{border:1px solid #d1d5db;border-radius:8px;padding:8px;text-align:center;text-decoration:none;font-size:12px;font-weight:750;color:#111827;background:#fff;cursor:pointer}
+.btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}
+.empty{padding:50px 20px;text-align:center;color:#64748b;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
+@media(max-width:900px){
+  .controls-inner{grid-template-columns:1fr}
+  .main,.header,.controls-inner{padding-left:14px;padding-right:14px}
+}
+@media(max-width:560px){
+  h1{font-size:18px}
+  .grid{grid-template-columns:1fr}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr)}
+  .auth-form{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body class="auth-locked">
+<main id="language-not-found" class="language-not-found" aria-labelledby="language-not-found-title">
+  <div>
+    <div class="language-not-found-code">404</div>
+    <h1 id="language-not-found-title">Page not found</h1>
+  </div>
+</main>
+<div id="dashboard-app">
+<div id="auth-gate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+  <section class="auth-card">
+    <h2 id="auth-title" class="auth-title">公司邮箱登录</h2>
+    <p class="auth-copy">这个 SP 单页监控看板仅允许已授权的公司邮箱访问。验证通过后，本机浏览器会记住邮箱。</p>
+    <form id="auth-form" class="auth-form">
+      <input id="auth-email" class="auth-input" type="email" autocomplete="email" inputmode="email" placeholder="请输入公司邮箱" required>
+      <button class="auth-submit" type="submit">进入看板</button>
+    </form>
+    <div id="auth-error" class="auth-error" aria-live="polite"></div>
+    <div class="auth-note">请输入完整邮箱，未授权邮箱无法访问。</div>
+  </section>
+</div>
+<header class="header">
+  <div class="header-inner">
+    <div class="topline">
+      <div>
+        <h1>SP 单页监控看板 · 2026-09</h1>
+        <div class="meta">Top200 Shopify/SP 站 · 单页创建/发布/更新信号 · 看板生成 2026/9/1 10:26:08</div>
+      </div>
+      <div class="meta">单页项目独立运行，不改变动态 Top20 旗舰逻辑</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>3</b><span>命中站点</span></div>
+      <div class="stat"><b>8</b><span>单页产品</span></div>
+      <div class="stat"><b>2</b><span>Top20 内站点</span></div>
+      <div class="stat"><b>1</b><span>核心候选站</span></div>
+      <div class="stat"><b>0</b><span>同款重复组</span></div>
+      <div class="stat"><b>197</b><span>待补扫站</span></div>
+      
+    </div>
+  </div>
+</header>
+<section class="controls">
+  <div class="controls-inner">
+    <input id="search" class="search" placeholder="搜索产品、域名、handle、类型">
+    <div class="tabs" id="tabs"></div>
+    <label class="toggle"><input id="dedupe" type="checkbox">隐藏同款重复</label>
+  </div>
+</section>
+<main class="main">
+  <div class="layout">
+    <section>
+      <div class="toolbar">
+        <div>
+          <div class="result-title">产品单页 <span id="result-count">0</span></div>
+          <div class="result-note">排名按首次发现为单页的时间倒序；更新信号单独显示，避免同一产品每天因更新日期变化被当成新单页。</div>
+        </div>
+      </div>
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty" style="display:none">没有符合当前筛选条件的单页产品</div>
+    </section>
+  </div>
+</main>
+<script>
+(() => {
+if (!document.documentElement.classList.contains("language-allowed")) return;
+const AUTH_STORAGE_KEY = "sp_single_page_dashboard_email";
+const AUTH_DOMAIN_HASH = "fce3633eb094ab6e645b37e8039e27d3f2c5439242f87e5d6931e91758dd4ff8";
+const DATA = {"generated_at":"2026/9/1 10:26:08","month":"2026-09","months":["2026-09"],"latest_month":"2026-09","label":"2026-09","summary":{"hit_sites":3,"hit_pages":8,"top20_flagship_sites":2,"core_candidate_sites":1,"needs_rescan_sites":197,"duplicate_groups":0,"duplicate_items":0},"products":[{"rank_index":35,"domain":"shimmer07.com","monthly_visits":55783,"top_country":"GB","tier":"core_candidate","url":"https://shimmer07.com/products/chalk-applicator-set","handle":"chalk-applicator-set","product_title":"🔥Last Day 57% OFF🌈12-Color Temporary Hair Chalk Applicator Set","page_title":"🔥Last Day 57% OFF🌈12-Color Temporary Hair Chalk Applicator Set","date_basis":"updated_month","signal_date":"2026-09-01T10:21:27+08:00","created_at":"2026-08-20T19:25:27+08:00","published_at":"2026-08-20T19:25:27+08:00","updated_at":"2026-09-01T10:21:27+08:00","lastmod":"","classification":"custom_single_page","reason":"landing markers without standard product module","standard_score":"0","landing_score":"16","product_class_count":"0","product_form_component_count":"0","shopify_product_form_count":"0","add_to_cart_form_count":"1","quick_add_count":"1","buy_now_count":"3","add_to_cart_count":"5","special_offer_count":"2","guarantee_count":"5","faq_count":"22","html_bytes":"608972","source_month":"2026-09","hit_count":4,"image_url":"","image_urls":[],"price":"","compare_at_price":"","currency":"","vendor":"","product_type":"","tags":[],"description":"","source_detail":"","display_title":"🔥Last Day 57% OFF🌈12-Color Temporary Hair Chalk Applicator Set","first_seen_at":"2026-08-29T03:36:47.041Z","first_seen_month":"2026-08","last_seen_at":"2026-09-01T02:25:37.085Z","last_seen_month":"2026-09","signal_sort_date":"2026-09-01T10:21:27+08:00","sort_date":"2026-08-29T03:36:47.041Z","freshness_weight":94,"duplicate_key":"57 12 color temporary hair chalk applicator set","duplicate_count":1,"duplicate_rank":1,"duplicate_keep":true},{"rank_index":35,"domain":"shimmer07.com","monthly_visits":55783,"top_country":"GB","tier":"core_candidate","url":"https://shimmer07.com/products/anti-splash-kitchen-faucet-filter-for-sediment-rust-removal","handle":"anti-splash-kitchen-faucet-filter-for-sediment-rust-removal","product_title":"⏰60%OFF⚡50K+ SOLD!💥Anti-Splash Kitchen Faucet Cotton Filter for Sediment & Rust Removal","page_title":"⏰60%OFF⚡50K+ SOLD!💥Anti-Splash Kitchen Faucet Cotton Filter for Sedime","date_basis":"updated_month","signal_date":"2026-09-01T10:21:27+08:00","created_at":"2026-08-17T11:46:35+08:00","published_at":"2026-08-17T11:46:35+08:00","updated_at":"2026-09-01T10:21:27+08:00","lastmod":"","classification":"custom_single_page","reason":"landing markers without standard product module","standard_score":"0","landing_score":"16","product_class_count":"0","product_form_component_count":"0","shopify_product_form_count":"0","add_to_cart_form_count":"1","quick_add_count":"1","buy_now_count":"3","add_to_cart_count":"5","special_offer_count":"2","guarantee_count":"6","faq_count":"18","html_bytes":"452065","source_month":"2026-09","hit_count":4,"image_url":"","image_urls":[],"price":"","compare_at_price":"","currency":"","vendor":"","product_type":"","tags":[],"description":"","source_detail":"","display_title":"⏰60%OFF⚡50K+ SOLD!💥Anti-Splash Kitchen Faucet Cotton Filter for Sediment & Rust Removal","first_seen_at":"2026-08-25T03:41:10.376Z","first_seen_month":"2026-08","last_seen_at":"2026-09-01T02:25:37.085Z","last_seen_month":"2026-09","signal_sort_date":"2026-09-01T10:21:27+08:00","sort_date":"2026-08-25T03:41:10.376Z","freshness_weight":81,"duplicate_key":"60 50k anti splash kitchen faucet cotton filter for sediment rust removal","duplicate_count":1,"duplicate_rank":1,"duplicate_keep":true},{"rank_index":35,"domain":"shimmer07.com","monthly_visits":55783,"top_country":"GB","tier":"core_candidate","url":"https://shimmer07.com/products/mshjle","handle":"mshjle","product_title":"🥳2026 HOT SALE🥳💞50K+ SOLD! 🥗🎁 50% OFF! Microwave Egg Poacher – From £4.99! Dual‑cavity, non‑stick & easy clean. Healthier than frying – stock up & save! 🏠✅","page_title":"🥳2026 HOT SALE🥳💞50K+ SOLD! 🥗🎁 50% OFF! Microwave Egg Poacher – From £4","date_basis":"updated_month","signal_date":"2026-09-01T10:21:27+08:00","created_at":"2026-08-13T20:36:35+08:00","published_at":"2026-08-13T20:36:35+08:00","updated_at":"2026-09-01T10:21:27+08:00","lastmod":"","classification":"custom_single_page","reason":"landing markers without standard product module","standard_score":"0","landing_score":"14","product_class_count":"0","product_form_component_count":"0","shopify_product_form_count":"0","add_to_cart_form_count":"1","quick_add_count":"1","buy_now_count":"2","add_to_cart_count":"5","special_offer_count":"2","guarantee_count":"5","faq_count":"22","html_bytes":"569089","source_month":"2026-09","hit_count":4,"image_url":"","image_urls":[],"price":"","compare_at_price":"","currency":"","vendor":"","product_type":"","tags":[],"description":"","source_detail":"","display_title":"🥳2026 HOT SALE🥳💞50K+ SOLD! 🥗🎁 50% OFF! Microwave Egg Poacher – From £4.99! Dual‑cavity, non‑stick & easy clean. Healthier than frying – stock up & save! 🏠✅","first_seen_at":"2026-08-25T03:41:10.376Z","first_seen_month":"2026-08","last_seen_at":"2026-09-01T02:25:37.085Z","last_seen_month":"2026-09","signal_sort_date":"2026-09-01T10:21:27+08:00","sort_date":"2026-08-25T03:41:10.376Z","freshness_weight":81,"duplicate_key":"50k microwave egg poacher from 4 99 dual cavity non stick easy clean healthier than frying stock up save","duplicate_count":1,"duplicate_rank":1,"duplicate_keep":true},{"rank_index":35,"domain":"shimmer07.com","monthly_visits":55783,"top_country":"GB","tier":"core_candidate","url":"https://shimmer07.com/products/iron-steamer-gb","handle":"iron-steamer-gb","product_title":"💨💞2026 HOT SALE 50% OFF! 🧺Garment Steamer for Clothes Portable Travel Clothing Steamer Iron📍GB","page_title":"💨💞2026 HOT SALE 50% OFF! 🧺Garment Steamer for Clothes Portable Travel","date_basis":"updated_month","signal_date":"2026-09-01T10:21:27+08:00","created_at":"2026-08-13T18:38:55+08:00","published_at":"2026-08-13T18:38:55+08:00","updated_at":"2026-09-01T10:21:27+08:00","lastmod":"","classification":"custom_single_page","reason":"landing markers without standard product module","standard_score":"0","landing_score":"12","product_class_count":"0","product_form_component_count":"0","shopify_product_form_count":"0","add_to_cart_form_count":"1","quick_add_count":"0","buy_now_count":"2","add_to_cart_count":"5","special_offer_count":"1","guarantee_count":"7","faq_count":"18","html_bytes":"544897","source_month":"2026-09","hit_count":4,"image_url":"","image_urls":[],"price":"","compare_at_price":"","currency":"","vendor":"","product_type":"","tags":[],"description":"","source_detail":"","display_title":"💨💞2026 HOT SALE 50% OFF! 🧺Garment Steamer for Clothes Portable Travel Clothing Steamer Iron📍GB","first_seen_at":"2026-08-25T03:41:10.376Z","first_seen_month":"2026-08","last_seen_at":"2026-09-01T02:25:37.085Z","last_seen_month":"2026-09","signal_sort_date":"2026-09-01T10:21:27+08:00","sort_date":"2026-08-25T03:41:10.376Z","freshness_weight":81,"duplicate_key":"garment steamer for clothes portable travel clothing steamer iron gb","duplicate_count":1,"duplicate_rank":1,"duplicate_keep":true},{"rank_index":2,"domain":"whitestitchs.com","monthly_visits":278252,"top_country":"N/A","tier":"top20_flagship","url":"https://whitestitchs.com/products/allater21","handle":"allater21","product_title":"🔥50% discount while supplies last!🎉All-Purpose Waterproof Leak Repair Tape","page_title":"🔥50% discount while supplies last!🎉All-Purpose Waterproof Leak Repair","date_basis":"updated_month","signal_date":"2026-09-01T02:20:20Z","created_at":"2025-11-14T08:14:52Z","published_at":"2025-11-14T08:14:52Z","updated_at":"2026-09-01T02:20:20Z","lastmod":"2026-09-01T02:20:22Z","classification":"custom_single_page","reason":"no product classes plus landing signals","standard_score":"0","landing_score":"5","product_class_count":"0","product_form_component_count":"0","shopify_product_form_count":"0","add_to_cart_form_count":"1","quick_add_count":"0","buy_now_count":"6","add_to_cart_count":"3","special_offer_count":"0","guarantee_count":"1","faq_count":"4","html_bytes":"295036","source_month":"2026-09","hit_count":1,"image_url":"","image_urls":[],"price":"","compare_at_price":"","currency":"","vendor":"","product_type":"","tags":[],"description":"","source_detail":"","display_title":"🔥50% discount while supplies last!🎉All-Purpose Waterproof Leak Repair Tape","first_seen_at":"2026-08-10T03:26:17.769Z","first_seen_month":"2026-08","last_seen_at":"2026-09-01T02:25:37.085Z","last_seen_month":"2026-09","signal_sort_date":"2026-09-01T02:20:20Z","sort_date":"2026-08-10T03:26:17.769Z","freshness_weight":32,"duplicate_key":"discount while supplies all purpose waterproof leak repair tape","duplicate_count":1,"duplicate_rank":1,"duplicate_keep":true},{"rank_index":4,"domain":"kariney.com","monthly_visits":260144,"top_country":"US","tier":"top20_flagship","url":"https://kariney.com/products/reusable-earwax-removal-adhesive-swabs","handle":"reusable-earwax-removal-adhesive-swabs","product_title":"🔥2026 HOT SALE🔥 Reusable Earwax Removal Adhesive Swabs","page_title":"🔥2026 HOT SALE🔥 Reusable Earwax Removal Adhesive Swabs","date_basis":"updated_month","signal_date":"2026-09-01T10:20:19+08:00","created_at":"2025-03-28T11:26:58+08:00","published_at":"2025-03-28T11:26:58+08:00","updated_at":"2026-09-01T10:20:19+08:00","lastmod":"2026-09-01T10:20:21+08:00","classification":"custom_single_page","reason":"landing markers without standard product module","standard_score":"0","landing_score":"12","product_class_count":"0","product_form_component_count":"0","shopify_product_form_count":"0","add_to_cart_form_count":"1","quick_add_count":"1","buy_now_count":"11","add_to_cart_count":"1","special_offer_count":"2","guarantee_count":"14","faq_count":"11","html_bytes":"331658","source_month":"2026-09","hit_count":3,"image_url":"","image_urls":[],"price":"","compare_at_price":"","currency":"","vendor":"","product_type":"","tags":[],"description":"","source_detail":"","display_title":"🔥2026 HOT SALE🔥 Reusable Earwax Removal Adhesive Swabs","first_seen_at":"2026-07-12T19:54:42.778Z","first_seen_month":"2026-07","last_seen_at":"2026-09-01T02:25:37.085Z","last_seen_month":"2026-09","signal_sort_date":"2026-09-01T10:20:19+08:00","sort_date":"2026-07-12T19:54:42.778Z","freshness_weight":39,"duplicate_key":"reusable earwax removal adhesive swabs","duplicate_count":1,"duplicate_rank":1,"duplicate_keep":true},{"rank_index":4,"domain":"kariney.com","monthly_visits":260144,"top_country":"US","tier":"top20_flagship","url":"https://kariney.com/products/jkai","handle":"jkai","product_title":"🔥Hot Sale 50% OFF🔥Multi-Use Portable Windproof Refillable Torch Lighter","page_title":"🔥Hot Sale 50% OFF🔥Multi-Use Portable Windproof Refillable Torch Lighte","date_basis":"updated_month","signal_date":"2026-09-01T10:20:19+08:00","created_at":"2025-03-27T19:09:57+08:00","published_at":"2025-03-27T19:09:57+08:00","updated_at":"2026-09-01T10:20:19+08:00","lastmod":"2026-09-01T10:20:21+08:00","classification":"custom_single_page","reason":"no product classes plus landing signals","standard_score":"0","landing_score":"5","product_class_count":"0","product_form_component_count":"0","shopify_product_form_count":"0","add_to_cart_form_count":"1","quick_add_count":"1","buy_now_count":"6","add_to_cart_count":"2","special_offer_count":"0","guarantee_count":"0","faq_count":"3","html_bytes":"267385","source_month":"2026-09","hit_count":3,"image_url":"","image_urls":[],"price":"","compare_at_price":"","currency":"","vendor":"","product_type":"","tags":[],"description":"","source_detail":"","display_title":"🔥Hot Sale 50% OFF🔥Multi-Use Portable Windproof Refillable Torch Lighter","first_seen_at":"2026-07-10T15:22:22.040Z","first_seen_month":"2026-07","last_seen_at":"2026-09-01T02:25:37.085Z","last_seen_month":"2026-09","signal_sort_date":"2026-09-01T10:20:19+08:00","sort_date":"2026-07-10T15:22:22.040Z","freshness_weight":32,"duplicate_key":"multi use portable windproof refillable torch lighter","duplicate_count":1,"duplicate_rank":1,"duplicate_keep":true},{"rank_index":4,"domain":"kariney.com","monthly_visits":260144,"top_country":"US","tier":"top20_flagship","url":"https://kariney.com/products/%F0%9F%92%A8-50-off-no-pump-vacuum","handle":"%F0%9F%92%A8-50-off-no-pump-vacuum","product_title":"","page_title":"🧳💨 50% OFF! No‑Pump Vacuum Storage Bags – Press & seal, no pump needed","date_basis":"sitemap_lastmod_month","signal_date":"2026-09-01T10:20:21+08:00","created_at":"","published_at":"","updated_at":"","lastmod":"2026-09-01T10:20:21+08:00","classification":"custom_single_page","reason":"landing markers without standard product module","standard_score":"0","landing_score":"12","product_class_count":"0","product_form_component_count":"0","shopify_product_form_count":"0","add_to_cart_form_count":"1","quick_add_count":"1","buy_now_count":"4","add_to_cart_count":"2","special_offer_count":"2","guarantee_count":"12","faq_count":"10","html_bytes":"339303","source_month":"2026-09","hit_count":3,"image_url":"","image_urls":[],"price":"","compare_at_price":"","currency":"","vendor":"","product_type":"","tags":[],"description":"","source_detail":"","display_title":"🧳💨 50% OFF! No‑Pump Vacuum Storage Bags – Press & seal, no pump needed","first_seen_at":"2026-07-03T10:11:53.497Z","first_seen_month":"2026-07","last_seen_at":"2026-09-01T02:25:37.085Z","last_seen_month":"2026-09","signal_sort_date":"2026-09-01T10:20:21+08:00","sort_date":"2026-07-03T10:11:53.497Z","freshness_weight":10,"duplicate_key":"no pump vacuum storage bags press seal no pump needed","duplicate_count":1,"duplicate_rank":1,"duplicate_keep":true}]};
+const latestSeenDay = DATA.products.map(item => firstSeenDate(item).slice(0, 10)).filter(Boolean).sort().at(-1) || "";
+const tabs = [
+  ["all", "全部"],
+  ["top20", "Top20 内"],
+  ["core", "核心候选"],
+  ["hot", "站点命中≥5"],
+  ["newest", "最新发现"]
+];
+let activeTab = "all";
+
+const fmt = new Intl.NumberFormat("zh-CN");
+function normalizeEmail(value){ return String(value || "").trim().toLowerCase(); }
+function emailDomain(value){
+  const match = normalizeEmail(value).match(/^[^\s@]+@([^\s@]+\.[^\s@]+)$/);
+  return match ? match[1] : "";
+}
+async function sha256Hex(value){
+  const bytes = new TextEncoder().encode(value);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+async function isAllowedEmail(value){
+  const domain = emailDomain(value);
+  if (!domain || !globalThis.crypto?.subtle) return false;
+  return await sha256Hex(domain) === AUTH_DOMAIN_HASH;
+}
+function showAuthError(message){
+  const el = document.getElementById("auth-error");
+  if (el) el.textContent = message;
+}
+function unlockDashboard(email){
+  try { localStorage.setItem(AUTH_STORAGE_KEY, normalizeEmail(email)); } catch {}
+  document.body.classList.remove("auth-locked");
+  document.body.classList.add("auth-unlocked");
+  document.getElementById("auth-gate")?.setAttribute("aria-hidden", "true");
+  render();
+}
+async function initAuth(){
+  let saved = "";
+  try { saved = normalizeEmail(localStorage.getItem(AUTH_STORAGE_KEY)); } catch {}
+  if (await isAllowedEmail(saved)) {
+    unlockDashboard(saved);
+    return;
+  }
+  const form = document.getElementById("auth-form");
+  const input = document.getElementById("auth-email");
+  if (saved && input) input.value = saved;
+  form?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const email = normalizeEmail(input?.value);
+    if (!(await isAllowedEmail(email))) {
+      showAuthError("该邮箱暂无访问权限。");
+      input?.focus();
+      return;
+    }
+    showAuthError("");
+    unlockDashboard(email);
+  });
+  input?.focus();
+}
+function shortDate(value){
+  const text = String(value ?? "");
+  return text ? text.slice(5, 10) : "";
+}
+function sortDate(item){ return String(item.sort_date || item.created_at || item.published_at || ""); }
+function firstSeenDate(item){ return String(item.first_seen_at || item.sort_date || ""); }
+function firstSeenChipText(item){ return "发现 " + shortDate(firstSeenDate(item)); }
+function dateChipText(item){
+  const value = item.signal_date || item.created_at || item.published_at || item.updated_at || "";
+  const label = item.date_basis === "updated_month" || item.date_basis === "sitemap_lastmod_month" ? "更新" : "上线";
+  return shortDate(value) + " " + label;
+}
+function priceText(item){
+  if (!item.price) return "价格未取到";
+  const currency = item.currency || "";
+  return currency ? currency + " " + item.price : item.price;
+}
+function esc(value){
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[ch]));
+}
+function safeFiniteNumber(value, fallback = 0){
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+function safeNonNegativeInteger(value, fallback = 0){
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : fallback;
+}
+function safePositiveInteger(value, fallback = 1){
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number > 0 ? number : fallback;
+}
+function tierBadge(item){
+  return item.tier === "top20_flagship"
+    ? '<span class="badge badge-top">Top20</span>'
+    : '<span class="badge badge-core">核心</span>';
+}
+function spreadByDomain(items){
+  const queues = new Map();
+  const domainOrder = [];
+  for (const item of items) {
+    const domain = item.domain || "";
+    if (!queues.has(domain)) {
+      queues.set(domain, []);
+      domainOrder.push(domain);
+    }
+    queues.get(domain).push(item);
+  }
+  const out = [];
+  let remaining = items.length;
+  while (remaining > 0) {
+    for (const domain of domainOrder) {
+      const queue = queues.get(domain);
+      if (!queue || !queue.length) continue;
+      out.push(queue.shift());
+      remaining -= 1;
+    }
+  }
+  return out;
+}
+function filteredItems(){
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  let items = DATA.products.slice();
+  if (activeTab === "top20") items = items.filter(item => item.tier === "top20_flagship");
+  if (activeTab === "core") items = items.filter(item => item.tier === "core_candidate");
+  if (activeTab === "hot") items = items.filter(item => Number(item.hit_count || 0) >= 5);
+  if (activeTab === "newest") items = items.filter(item => firstSeenDate(item).slice(0, 10) === latestSeenDay);
+  if (document.getElementById("dedupe").checked) items = items.filter(item => item.duplicate_keep !== false);
+  if (q) {
+    items = items.filter(item => [
+      item.domain, item.handle, item.display_title, item.product_type, item.description, (item.tags || []).join(" ")
+    ].join(" ").toLowerCase().includes(q));
+  }
+  items.sort((a,b) => {
+    return sortDate(b).localeCompare(sortDate(a)) ||
+      Number(b.freshness_weight || 0) - Number(a.freshness_weight || 0) ||
+      Number(b.hit_count || 0) - Number(a.hit_count || 0) ||
+      Number(b.monthly_visits || 0) - Number(a.monthly_visits || 0);
+  });
+  return spreadByDomain(items);
+}
+function renderTabs(){
+  const el = document.getElementById("tabs");
+  el.innerHTML = tabs.map(([id,label]) => '<button class="tab '+(activeTab===id?'active':'')+'" data-tab="'+esc(id)+'">'+esc(label)+'</button>').join("");
+  el.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    activeTab = btn.dataset.tab;
+    render();
+  }));
+}
+function renderGrid(){
+  const items = filteredItems();
+  document.getElementById("result-count").textContent = items.length;
+  const grid = document.getElementById("grid");
+  const empty = document.getElementById("empty");
+  empty.style.display = items.length ? "none" : "block";
+  grid.innerHTML = items.map((item, index) => {
+    const landingScore = safeFiniteNumber(item.landing_score);
+    const rankIndex = safeNonNegativeInteger(item.rank_index);
+    const hitCount = safeNonNegativeInteger(item.hit_count);
+    const duplicateCount = safePositiveInteger(item.duplicate_count);
+    const image = item.image_url
+      ? '<img src="'+esc(item.image_url)+'" alt="'+esc(item.display_title || item.handle)+'" loading="lazy" referrerpolicy="no-referrer">'
+      : '<div class="placeholder">未取到产品图<br>'+esc(item.domain)+'</div>';
+    const type = item.product_type ? '<span class="chip">'+esc(item.product_type)+'</span>' : "";
+    const compare = item.compare_at_price ? '<span class="chip">原价 '+esc(item.compare_at_price)+'</span>' : "";
+    const duplicate = duplicateCount > 1 ? '<span class="chip chip-dup">同款 '+esc(duplicateCount)+'</span>' : "";
+    return '<article class="card">'+
+      '<div class="image-wrap">'+image+'<span class="rank">#'+(index + 1)+'</span><span class="tier">'+tierBadge(item)+'</span></div>'+
+      '<div class="body">'+
+        '<div class="title">'+esc(item.display_title || item.handle)+'</div>'+
+        '<div class="desc">'+esc(item.description || item.page_title || item.handle)+'</div>'+
+        '<div class="chips">'+
+          '<span class="chip">'+esc(item.domain)+'</span>'+
+          '<span class="chip chip-price">'+esc(priceText(item))+'</span>'+
+          compare+
+          '<span class="chip chip-signal">'+esc(firstSeenChipText(item))+'</span>'+
+          '<span class="chip chip-date">'+esc(dateChipText(item))+'</span>'+
+          '<span class="chip chip-score">LP '+esc(landingScore)+'</span>'+
+          '<span class="chip chip-rank">站点#'+esc(rankIndex)+'</span>'+
+          '<span class="chip chip-hit-count">站内 '+esc(hitCount)+' 页</span>'+
+          duplicate+
+          type+
+        '</div>'+
+        '<div class="actions"><a class="btn primary" href="'+esc(item.url)+'" target="_blank" rel="noopener">打开单页</a><button class="btn" data-copy="'+esc(item.url)+'">复制链接</button></div>'+
+      '</div>'+
+    '</article>';
+  }).join("");
+  grid.querySelectorAll("[data-copy]").forEach(btn => btn.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(btn.dataset.copy).catch(() => {});
+    btn.textContent = "已复制";
+    setTimeout(() => btn.textContent = "复制链接", 1200);
+  }));
+}
+function render(){
+  renderTabs();
+  renderGrid();
+}
+globalThis.unlockDashboard = unlockDashboard;
+document.getElementById("search").addEventListener("input", renderGrid);
+document.getElementById("dedupe").addEventListener("change", render);
+initAuth().catch(() => showAuthError("验证失败，请稍后再试。"));
+})();
+</script>
+</div>
+</body>
+</html>
