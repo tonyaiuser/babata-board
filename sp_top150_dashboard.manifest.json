@@ -1,38 +1,38 @@
 {
-  "expected_date": "2026-09-03",
-  "generated_at": "2026-09-03T05:15:06.228638+00:00",
-  "html_sha256": "deb38308e3132331f48155eb0c0842544925b8b481a7475f13d10b54379b0c3d",
+  "expected_date": "2026-09-04",
+  "generated_at": "2026-09-04T03:34:37.907492+00:00",
+  "html_sha256": "a2d8a1f5cb2fda7392e58c5eae6fccaa0b789d3eb5a3cdfbd5dba6f8a4571f38",
   "outputs": [
     {
-      "bytes": 393060,
+      "bytes": 397954,
       "name": "sp_top150_dashboard.html",
-      "sha256": "deb38308e3132331f48155eb0c0842544925b8b481a7475f13d10b54379b0c3d"
+      "sha256": "a2d8a1f5cb2fda7392e58c5eae6fccaa0b789d3eb5a3cdfbd5dba6f8a4571f38"
     },
     {
-      "bytes": 393060,
+      "bytes": 397954,
       "name": "sp_picker_dashboard.html",
-      "sha256": "deb38308e3132331f48155eb0c0842544925b8b481a7475f13d10b54379b0c3d"
+      "sha256": "a2d8a1f5cb2fda7392e58c5eae6fccaa0b789d3eb5a3cdfbd5dba6f8a4571f38"
     }
   ],
   "producer": "build_top150_dashboard",
-  "product_count": 302,
+  "product_count": 306,
   "schema_version": 1,
   "source": {
-    "bytes": 448039,
-    "name": "sp_hotlist_2026-09-03.json",
-    "path": "/Users/tonyaiuser/.openclaw/workspace/sp_hotlist_2026-09-03.json",
+    "bytes": 455123,
+    "name": "sp_hotlist_2026-09-04.json",
+    "path": "/Users/tonyaiuser/.openclaw/workspace/sp_hotlist_2026-09-04.json",
     "producer": "sp-monitor",
     "schema_version": 2,
-    "sha256": "021bddd5daa80585163b0ef29515806e5b5514c3dd4e25acc1a0b10bfb27def1"
+    "sha256": "1fd86e963d319f915a27bc0d58bd8df26c2d874605b980152fda13efef80792e"
   },
-  "source_date": "2026-09-03",
-  "source_hash": "021bddd5daa80585163b0ef29515806e5b5514c3dd4e25acc1a0b10bfb27def1",
+  "source_date": "2026-09-04",
+  "source_hash": "1fd86e963d319f915a27bc0d58bd8df26c2d874605b980152fda13efef80792e",
   "source_health": {
     "contract_profile": "sp-hotlist-v2-top150-health",
-    "results_count": 302,
-    "sites_successful": 140,
+    "results_count": 306,
+    "sites_successful": 148,
     "sites_total": 150,
-    "success_ratio": 0.9333,
+    "success_ratio": 0.9867,
     "top20_sites_successful": 20,
     "top20_sites_total": 20,
     "top20_success_ratio": 1.0
