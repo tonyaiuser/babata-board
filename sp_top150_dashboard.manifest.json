@@ -1,17 +1,17 @@
 {
   "expected_date": "2026-09-04",
-  "generated_at": "2026-09-04T03:34:37.907492+00:00",
-  "html_sha256": "a2d8a1f5cb2fda7392e58c5eae6fccaa0b789d3eb5a3cdfbd5dba6f8a4571f38",
+  "generated_at": "2026-09-04T05:15:01.869082+00:00",
+  "html_sha256": "4fbda336660d24b9721804a9a28b62e1b2d7f64ec921c8fcb85984ce2d4b35e6",
   "outputs": [
     {
       "bytes": 397954,
       "name": "sp_top150_dashboard.html",
-      "sha256": "a2d8a1f5cb2fda7392e58c5eae6fccaa0b789d3eb5a3cdfbd5dba6f8a4571f38"
+      "sha256": "4fbda336660d24b9721804a9a28b62e1b2d7f64ec921c8fcb85984ce2d4b35e6"
     },
     {
       "bytes": 397954,
       "name": "sp_picker_dashboard.html",
-      "sha256": "a2d8a1f5cb2fda7392e58c5eae6fccaa0b789d3eb5a3cdfbd5dba6f8a4571f38"
+      "sha256": "4fbda336660d24b9721804a9a28b62e1b2d7f64ec921c8fcb85984ce2d4b35e6"
     }
   ],
   "producer": "build_top150_dashboard",
