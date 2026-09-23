@@ -1,41 +1,41 @@
 {
-  "expected_date": "2026-09-22",
-  "generated_at": "2026-09-22T05:15:00.878222+00:00",
-  "html_sha256": "25d3cf6d0cdf7ba80a12554bfc620af5de82d391351129f28e46eafbb07c4e17",
+  "expected_date": "2026-09-23",
+  "generated_at": "2026-09-23T04:44:08.240335+00:00",
+  "html_sha256": "9727536f70c9c23ab2ff4ef0876193314d2788798557de993e87647e4a14de28",
   "outputs": [
     {
-      "bytes": 353614,
+      "bytes": 485568,
       "name": "sp_top150_dashboard.html",
-      "sha256": "25d3cf6d0cdf7ba80a12554bfc620af5de82d391351129f28e46eafbb07c4e17"
+      "sha256": "9727536f70c9c23ab2ff4ef0876193314d2788798557de993e87647e4a14de28"
     },
     {
-      "bytes": 353614,
+      "bytes": 485568,
       "name": "sp_picker_dashboard.html",
-      "sha256": "25d3cf6d0cdf7ba80a12554bfc620af5de82d391351129f28e46eafbb07c4e17"
+      "sha256": "9727536f70c9c23ab2ff4ef0876193314d2788798557de993e87647e4a14de28"
     }
   ],
   "producer": "build_top150_dashboard",
-  "product_count": 265,
+  "product_count": 373,
   "schema_version": 1,
   "source": {
-    "bytes": 407420,
-    "name": "sp_hotlist_2026-09-22.json",
-    "path": "/Users/tonyaiuser/.openclaw/workspace/sp_hotlist_2026-09-22.json",
+    "bytes": 540407,
+    "name": "sp_hotlist_2026-09-23.json",
+    "path": "/Users/tonyaiuser/.openclaw/workspace/sp_hotlist_2026-09-23.json",
     "producer": "sp-monitor",
     "schema_version": 2,
-    "sha256": "57856e2678bd677fed8c4fe1338b82aed63938c65081dc77a3081dd5cef4c086"
+    "sha256": "43598f1e2177298352d01df595977ce3d99663e73e36ed7ce410e67bfc9881b4"
   },
-  "source_date": "2026-09-22",
-  "source_hash": "57856e2678bd677fed8c4fe1338b82aed63938c65081dc77a3081dd5cef4c086",
+  "source_date": "2026-09-23",
+  "source_hash": "43598f1e2177298352d01df595977ce3d99663e73e36ed7ce410e67bfc9881b4",
   "source_health": {
     "contract_profile": "sp-hotlist-v2-top150-health",
-    "results_count": 265,
-    "sites_successful": 150,
+    "results_count": 373,
+    "sites_successful": 149,
     "sites_total": 150,
-    "success_ratio": 1.0,
-    "top20_sites_successful": 20,
+    "success_ratio": 0.9933,
+    "top20_sites_successful": 19,
     "top20_sites_total": 20,
-    "top20_success_ratio": 1.0
+    "top20_success_ratio": 0.95
   },
   "template_sha256": "d01ba26a59afec8cfc6c4a4381b6ec47f6b5f684eb418815fcecba7824d42c4f"
 }
